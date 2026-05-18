@@ -336,6 +336,18 @@ npm run seed
 
 Creates 8 sample sessions, 23 agents, and 106 events so you can explore the UI immediately.
 
+### Alternative: macOS Desktop App
+
+If you'd rather not keep a terminal open, build the optional **Electron desktop app**. It embeds the server in-process, adds a menu-bar (tray) icon, and supports auto-start at login via native Login Items.
+
+```bash
+npm run desktop:install
+npm run desktop:dmg            # → desktop/release/ClaudeCodeMonitor-*.dmg
+open desktop/release/ClaudeCodeMonitor-*-universal.dmg
+```
+
+Full details, lifecycle semantics, and signing/notarization hooks: [`DESKTOP.md`](./DESKTOP.md).
+
 ### Alternative: Docker / Podman
 
 A `Dockerfile` and `docker-compose.yml` are included. Both Docker and Podman are supported.

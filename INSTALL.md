@@ -168,6 +168,22 @@ Open **http://localhost:4820** in your browser.
 
 ---
 
+## macOS Desktop App (optional)
+
+If you'd rather not keep a terminal window open, the project also ships an Electron-based macOS app that embeds the server in-process, registers a menu-bar icon, and offers a one-click "Open at Login" toggle.
+
+```bash
+npm run setup
+npm run build
+npm run desktop:install
+npm run desktop:dmg            # → desktop/release/ClaudeCodeMonitor-*.dmg
+open desktop/release/ClaudeCodeMonitor-*-universal.dmg
+```
+
+Drag `Claude Code Monitor.app` into `/Applications` and double-click. The first launch may need a one-time Gatekeeper bypass (the DMG is ad-hoc signed). Full details: [`DESKTOP.md`](DESKTOP.md).
+
+---
+
 ## Optional: Local MCP server
 
 If you want AI agents to call dashboard functionality through MCP tools, run the local MCP server in `mcp/`:
