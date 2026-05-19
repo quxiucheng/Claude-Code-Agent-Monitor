@@ -71,6 +71,8 @@
     "desktop:dev": "npm run build && cd desktop && npm run dev",
     "desktop:build": "cd desktop && npm run build",
     "desktop:dmg": "npm run build && cd desktop && npm run dmg",
+    "desktop:dmg:arm64": "npm run build && cd desktop && npm run dmg:arm64",
+    "desktop:dmg:x64": "npm run build && cd desktop && npm run dmg:x64",
     "desktop:test": "cd desktop && npm test",
     "install-hooks": "node scripts/install-hooks.js",
     "seed": "node scripts/seed.js",

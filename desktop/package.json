@@ -3,6 +3,13 @@
   "version": "1.1.0",
   "private": true,
   "description": "Native macOS desktop shell for Claude Code Agent Monitor.",
+  "author": "Son Nguyen <hoangson091104@gmail.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/hoangsonww/Claude-Code-Agent-Monitor",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hoangsonww/Claude-Code-Agent-Monitor.git"
+  },
   "main": "out/main.js",
   "scripts": {
     "clean": "rm -rf out release",
@@ -12,6 +19,8 @@
     "dev": "npm run build && electron out/main.js",
     "package": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --universal --publish never",
     "dmg": "npm run package",
+    "dmg:arm64": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --arm64 --publish never",
+    "dmg:x64": "npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --x64 --publish never",
     "test": "npm run build && node --test --test-reporter=spec tests/smoke.test.mjs",
     "postinstall": "electron-builder install-app-deps"
   },
