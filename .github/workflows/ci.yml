@@ -6,8 +6,10 @@
 # 3. Build: Builds the client application and uploads the artifact.
 # 4. Detect Changed Paths: A `dorny/paths-filter` job that flags `desktop/**` (or workflow) changes so the desktop job below stays
 #    path-filtered without hard-coding a branch name.
-# 5. macOS Desktop (DMG): Builds the Electron desktop app on `macos-latest` and uploads the universal `ClaudeCodeMonitor-dmg`
-#    artifact. Runs on any push, when the changes job flagged `desktop/**`, or when a PR carries the `desktop` label. The build is
+# 5. macOS Desktop (DMG): Builds the Electron desktop app on `macos-latest` and uploads two `ClaudeCodeMonitor-*.dmg` artifacts
+#    (arm64 + x64). Universal builds were dropped because @electron/universal's merge step hangs/errors on this repo's
+#    extraResources layout (parent-path sources). Two single-arch DMGs ship the same payload without the merge step.
+#    Runs on any push, when the changes job flagged `desktop/**`, or when a PR carries the `desktop` label. The build is
 #    resilient to flaky `hdiutil detach` (retries up to 3 times, force-detaching stale volumes between attempts).
 # 6. Docker Build & Push: Builds a Docker image and pushes it to GitHub Container Registry (GHCR) on pushes to main/master branches.
 # 7. Release: On a successful push to the default branch, publishes a GitHub Release tagged vX.Y.Z (matching the existing v1.0.0 /
