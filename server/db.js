@@ -370,6 +370,24 @@ db.prepare(
 `
 ).run();
 
+// Startup repair: normalize compaction agents whose started_at > ended_at.
+// Earlier hook ingestion (pre-#156) stamped started_at = NOW (ingestion wall
+// clock) and ended_at = transcript timestamp (in the past), producing
+// impossible negative durations that corrupted workflow analytics. Compaction
+// is instantaneous from the user's perspective, so the transcript timestamp
+// (preserved in ended_at) is the canonical value — collapse started_at to it.
+// Idempotent: only touches rows where the invariant is broken.
+db.prepare(
+  `
+  UPDATE agents SET
+    started_at = ended_at,
+    updated_at = ended_at
+  WHERE subagent_type = 'compaction'
+    AND ended_at IS NOT NULL
+    AND julianday(ended_at) < julianday(started_at)
+`
+).run();
+
 const stmts = {
   getSession: db.prepare("SELECT * FROM sessions WHERE id = ?"),
   listSessions: db.prepare(
