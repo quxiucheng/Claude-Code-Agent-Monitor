@@ -21,6 +21,7 @@ import { api } from "../lib/api";
 import { eventBus } from "../lib/eventBus";
 import { SessionStatusBadge } from "../components/StatusBadge";
 import { EmptyState } from "../components/EmptyState";
+import { TableRowSkeleton } from "../components/Skeleton";
 import { formatDateTime, formatDuration, truncate, fmtCost } from "../lib/format";
 import { effectiveSessionStatus, isSessionAwaitingInput } from "../lib/types";
 import type { Session, DashboardEvent } from "../lib/types";
@@ -324,6 +325,15 @@ export function Sessions() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
+                {loading && paged.length === 0
+                  ? Array.from({ length: 8 }).map((_, i) => (
+                      <TableRowSkeleton
+                        key={`sk-${i}`}
+                        columns={8}
+                        widths={["w-40", "w-20", "w-28", "w-20", "w-10", "w-16", "w-44", "w-4"]}
+                      />
+                    ))
+                  : null}
                 {paged.map((session) => (
                   <tr
                     key={session.id}

@@ -26,6 +26,7 @@ import {
 import type { EventFiltersValue } from "../components/EventFilters";
 import { EventFiltersInfo } from "../components/EventFiltersInfo";
 import { EventGroupRow } from "../components/EventGroupRow";
+import { Skeleton } from "../components/Skeleton";
 import {
   agentOriginLabel,
   buildEventTitle,
@@ -351,6 +352,21 @@ export function ActivityFeed() {
         <>
           <div className="card overflow-hidden">
             <div className="divide-y divide-border max-h-[calc(100vh-260px)] min-h-[560px] overflow-y-auto overflow-x-auto">
+              {loading && events.length === 0
+                ? Array.from({ length: 12 }).map((_, i) => (
+                    <div
+                      key={`sk-${i}`}
+                      className="flex items-center px-5 py-3.5 gap-4"
+                      aria-busy="true"
+                    >
+                      <Skeleton className="w-3.5 h-3.5" rounded="sm" />
+                      <Skeleton className="h-3 w-14" />
+                      <Skeleton className="h-5 w-16" rounded="full" />
+                      <Skeleton className="h-3 w-48 flex-shrink-0" />
+                      <Skeleton className="h-3 flex-1" />
+                    </div>
+                  ))
+                : null}
               {grouped
                 ? groups.map((group) => (
                     <EventGroupRow

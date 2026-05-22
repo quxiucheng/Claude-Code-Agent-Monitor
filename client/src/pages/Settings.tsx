@@ -53,6 +53,7 @@ import { fmt, fmtCost, getCurrentLocale } from "../lib/format";
 import { subscribeToPush, unsubscribeFromPush } from "../lib/push";
 import { Tip } from "../components/Tip";
 import { ImportHistory } from "../components/ImportHistory";
+import { Skeleton } from "../components/Skeleton";
 import type { ModelPricing, WSMessage } from "../lib/types";
 
 // ─── Notification preferences ───
@@ -659,8 +660,31 @@ export function Settings() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-500">
-        {t("common:loading")}
+      <div className="animate-fade-in space-y-8" aria-busy="true">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Skeleton className="w-9 h-9" rounded="lg" />
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-48" />
+            </div>
+          </div>
+          <Skeleton className="h-8 w-32" />
+        </div>
+        <div className="card p-6 flex items-center gap-4">
+          <Skeleton className="w-12 h-12" rounded="lg" />
+          <div className="space-y-2 flex-1">
+            <Skeleton className="h-3 w-40" />
+            <Skeleton className="h-7 w-32" />
+          </div>
+        </div>
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="card p-5 space-y-3">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-5/6" />
+          </div>
+        ))}
       </div>
     );
   }

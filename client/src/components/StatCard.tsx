@@ -6,6 +6,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import { Tip } from "./Tip";
+import { StatValueSkeleton } from "./Skeleton";
 
 interface StatCardProps {
   label: string;
@@ -15,6 +16,9 @@ interface StatCardProps {
   accentColor?: string;
   /** Raw value shown as custom tooltip on hover */
   raw?: string;
+  /** When true, render skeletons in place of value/trend so the UI never
+   *  flashes "-" or "0" before real data arrives. */
+  loading?: boolean;
 }
 
 export function StatCard({
@@ -24,6 +28,7 @@ export function StatCard({
   trend,
   accentColor = "text-accent",
   raw,
+  loading = false,
 }: StatCardProps) {
   return (
     <div className="card p-5">
@@ -34,10 +39,16 @@ export function StatCard({
         <Icon className={`w-5 h-5 flex-shrink-0 ${accentColor}`} />
       </div>
       <div className="flex items-end gap-2 min-w-0">
-        <Tip raw={raw}>
-          <span className="text-2xl font-semibold text-gray-100 truncate">{value}</span>
-        </Tip>
-        {trend && <span className="text-xs text-gray-500 mb-1 flex-shrink-0">{trend}</span>}
+        {loading ? (
+          <StatValueSkeleton />
+        ) : (
+          <Tip raw={raw}>
+            <span className="text-2xl font-semibold text-gray-100 truncate">{value}</span>
+          </Tip>
+        )}
+        {!loading && trend && (
+          <span className="text-xs text-gray-500 mb-1 flex-shrink-0">{trend}</span>
+        )}
       </div>
     </div>
   );

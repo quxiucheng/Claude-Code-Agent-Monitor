@@ -16,6 +16,7 @@ import { eventBus } from "../lib/eventBus";
 import { AgentCard } from "../components/AgentCard";
 import { SessionCard } from "../components/SessionCard";
 import { EmptyState } from "../components/EmptyState";
+import { CardSkeleton } from "../components/Skeleton";
 import {
   STATUS_CONFIG,
   SESSION_STATUS_CONFIG,
@@ -269,13 +270,19 @@ export function KanbanBoard() {
                     }))
                   }
                 >
-                  {items?.slice(0, limit).map((agent) => (
-                    <AgentCard
-                      key={agent.id}
-                      agent={agent}
-                      session={sessionsById.get(agent.session_id)}
-                    />
-                  ))}
+                  {loading && (items?.length ?? 0) === 0
+                    ? Array.from({ length: 3 }).map((_, i) => (
+                        <CardSkeleton key={`sk-${status}-${i}`} />
+                      ))
+                    : items
+                        ?.slice(0, limit)
+                        .map((agent) => (
+                          <AgentCard
+                            key={agent.id}
+                            agent={agent}
+                            session={sessionsById.get(agent.session_id)}
+                          />
+                        ))}
                 </Column>
               );
             })
@@ -301,9 +308,13 @@ export function KanbanBoard() {
                     }))
                   }
                 >
-                  {items?.slice(0, limit).map((session) => (
-                    <SessionCard key={session.id} session={session} />
-                  ))}
+                  {loading && (items?.length ?? 0) === 0
+                    ? Array.from({ length: 3 }).map((_, i) => (
+                        <CardSkeleton key={`sk-${status}-${i}`} />
+                      ))
+                    : items
+                        ?.slice(0, limit)
+                        .map((session) => <SessionCard key={session.id} session={session} />)}
                 </Column>
               );
             })}

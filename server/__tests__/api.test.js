@@ -1631,6 +1631,119 @@ describe("Transcript cache integration", () => {
 });
 
 // ============================================================
+// Compaction ingestion (regression: issue #156)
+// ============================================================
+describe("Compaction agent ingestion", () => {
+  it("should stamp started_at == ended_at == transcript timestamp (no negative duration)", async () => {
+    const pastTs = new Date(Date.now() - 60_000).toISOString(); // 60s in past
+    const compactUuid = `compact-uuid-${Date.now()}`;
+    const tmpTranscript = path.join(os.tmpdir(), `compact-test-${Date.now()}.jsonl`);
+    fs.writeFileSync(
+      tmpTranscript,
+      JSON.stringify({
+        isCompactSummary: true,
+        uuid: compactUuid,
+        timestamp: pastTs,
+        message: { model: "claude-sonnet-4-5", usage: { input_tokens: 100, output_tokens: 50 } },
+      }) + "\n"
+    );
+
+    const sessionId = `compact-sess-${Date.now()}`;
+    const hooks = require("../routes/hooks");
+
+    try {
+      hooks.transcriptCache.invalidate(tmpTranscript);
+      await post("/api/hooks/event", {
+        hook_type: "PreToolUse",
+        data: {
+          session_id: sessionId,
+          transcript_path: tmpTranscript,
+          tool_name: "Read",
+          cwd: "/tmp",
+        },
+      });
+
+      const compactId = `${sessionId}-compact-${compactUuid}`;
+      const agent = stmts.getAgent.get(compactId);
+      assert.ok(agent, "compaction agent should be created");
+      assert.equal(agent.subagent_type, "compaction");
+      assert.equal(
+        agent.started_at,
+        pastTs,
+        "started_at must equal transcript timestamp, not ingestion wall clock"
+      );
+      assert.equal(agent.ended_at, pastTs, "ended_at must equal transcript timestamp");
+
+      const durRow = db
+        .prepare(
+          `SELECT (julianday(ended_at) - julianday(started_at)) * 86400 AS dur
+           FROM agents WHERE id = ?`
+        )
+        .get(compactId);
+      assert.ok(durRow.dur >= 0, `compaction duration must be >= 0, got ${durRow.dur}`);
+      assert.equal(durRow.dur, 0, "compaction is instantaneous → duration must be exactly 0");
+    } finally {
+      try {
+        fs.unlinkSync(tmpTranscript);
+      } catch {
+        // ignore
+      }
+    }
+  });
+
+  it("workflows avgDuration for compaction must never be negative", async () => {
+    // Seed a few broken-historical rows (simulating pre-fix corrupt data) and
+    // a fresh-ingestion row, then assert the API never reports a negative avg.
+    const sid = `compact-avg-sess-${Date.now()}`;
+    stmts.insertSession.run(sid, "compact-avg", "completed", "/tmp", "test-model", null);
+    stmts.insertAgent.run(`${sid}-main`, sid, "main", "main", null, "completed", null, null, null);
+
+    // Insert a compaction row with the broken invariant explicitly, then run
+    // the same repair the startup migration runs and assert it is healed.
+    const brokenId = `${sid}-compact-broken`;
+    stmts.insertAgent.run(
+      brokenId,
+      sid,
+      "Context Compaction",
+      "subagent",
+      "compaction",
+      "completed",
+      null,
+      `${sid}-main`,
+      null
+    );
+    const pastTs = new Date(Date.now() - 30_000).toISOString();
+    db.prepare("UPDATE agents SET ended_at = ? WHERE id = ?").run(pastTs, brokenId);
+    const before = db.prepare("SELECT started_at, ended_at FROM agents WHERE id = ?").get(brokenId);
+    assert.ok(
+      before.ended_at < before.started_at,
+      "precondition: row should have ended_at < started_at"
+    );
+
+    // Apply repair (mirrors startup migration in server/db.js)
+    db.prepare(
+      `UPDATE agents SET started_at = ended_at, updated_at = ended_at
+       WHERE subagent_type = 'compaction' AND ended_at IS NOT NULL
+         AND julianday(ended_at) < julianday(started_at)`
+    ).run();
+
+    const after = db.prepare("SELECT started_at, ended_at FROM agents WHERE id = ?").get(brokenId);
+    assert.equal(after.started_at, pastTs, "repair should collapse started_at to ended_at");
+    assert.equal(after.ended_at, pastTs);
+
+    const res = await fetch("/api/workflows");
+    assert.equal(res.status, 200);
+    const compactionType = (res.body.types || []).find((t) => t.subagent_type === "compaction");
+    if (compactionType && compactionType.avgDuration !== null) {
+      assert.ok(
+        compactionType.avgDuration >= 0,
+        `compaction avgDuration must be >= 0, got ${compactionType.avgDuration}`
+      );
+    }
+  });
+});
+
+// ============================================================
 // Watchdog: stale-error idempotence
 // ============================================================
 describe("Watchdog API-error detection", () => {

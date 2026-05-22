@@ -526,7 +526,14 @@ const processEvent = db.transaction((hookType, data) => {
             mainAgentId,
             null
           );
-          stmts.updateAgent.run(null, "completed", null, null, ts, null, compactId);
+          // Compaction is an instantaneous transition. Stamp started_at and
+          // ended_at to the same transcript timestamp so duration is exactly 0.
+          // Without this, insertAgent's default started_at = NOW (ingestion
+          // wall clock) is paired with ended_at = ts (transcript time in the
+          // past), producing impossible negative durations (issue #156).
+          db.prepare(
+            "UPDATE agents SET started_at = ?, ended_at = ?, updated_at = ? WHERE id = ?"
+          ).run(ts, ts, ts, compactId);
           broadcast("agent_created", stmts.getAgent.get(compactId));
 
           const compactSummary = `Context compacted — conversation history compressed (#${compaction.entries.indexOf(entry) + 1})`;

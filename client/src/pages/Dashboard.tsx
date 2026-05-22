@@ -1136,41 +1136,46 @@ export function Dashboard() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <StatCard
               label={t("totalSessions")}
-              value={stats ? fmt(stats.total_sessions) : "-"}
+              value={stats ? fmt(stats.total_sessions) : ""}
               raw={stats ? stats.total_sessions.toLocaleString() : undefined}
               icon={FolderOpen}
               trend={stats ? `${stats.active_sessions}${t("activeTrend")}` : undefined}
+              loading={!stats}
             />
             <StatCard
               label={t("activeAgents")}
-              value={stats?.active_agents ?? "-"}
+              value={stats?.active_agents ?? ""}
               icon={Bot}
               accentColor="text-emerald-400"
+              loading={!stats}
             />
             <StatCard
               label={t("activeSubagents")}
-              value={allSubagents.filter((a) => a.status === "working").length}
+              value={stats ? allSubagents.filter((a) => a.status === "working").length : ""}
               icon={GitBranch}
               accentColor="text-violet-400"
-              trend={`${allSubagents.length}${t("totalTrend")}`}
+              trend={stats ? `${allSubagents.length}${t("totalTrend")}` : undefined}
+              loading={!stats}
             />
             <StatCard
               label={t("eventsToday")}
-              value={stats ? fmt(stats.events_today) : "-"}
+              value={stats ? fmt(stats.events_today) : ""}
               raw={stats ? stats.events_today.toLocaleString() : undefined}
               icon={Zap}
               accentColor="text-yellow-400"
+              loading={!stats}
             />
             <StatCard
               label={t("totalEvents")}
-              value={stats ? fmt(stats.total_events) : "-"}
+              value={stats ? fmt(stats.total_events) : ""}
               raw={stats ? stats.total_events.toLocaleString() : undefined}
               icon={Activity}
               accentColor="text-violet-400"
+              loading={!stats}
             />
             <StatCard
               label={t("totalCost")}
-              value={totalCost !== null ? fmtCost(totalCost) : "-"}
+              value={totalCost !== null ? fmtCost(totalCost) : ""}
               raw={
                 totalCost !== null
                   ? `$${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -1178,6 +1183,7 @@ export function Dashboard() {
               }
               icon={DollarSign}
               accentColor="text-emerald-400"
+              loading={totalCost === null}
             />
           </div>
 

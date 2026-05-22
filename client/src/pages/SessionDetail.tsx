@@ -40,6 +40,7 @@ import {
 import type { EventFiltersValue } from "../components/EventFilters";
 import { EventFiltersInfo } from "../components/EventFiltersInfo";
 import { EventGroupRow } from "../components/EventGroupRow";
+import { Skeleton } from "../components/Skeleton";
 import {
   agentOriginLabel,
   buildEventTitle,
@@ -454,8 +455,37 @@ export function SessionDetail() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-500">
-        {t("detail.loading")}
+      <div className="animate-fade-in space-y-8" aria-busy="true">
+        <div className="flex items-start gap-4">
+          <Skeleton className="w-8 h-8" rounded="md" />
+          <div className="flex-1 space-y-3">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-6 w-64" />
+              <Skeleton className="h-5 w-16" rounded="full" />
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-5 w-24" />
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="card p-5 space-y-2">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-7 w-24" />
+            </div>
+          ))}
+        </div>
+        {Array.from({ length: 2 }).map((_, i) => (
+          <div key={i} className="card p-5 space-y-3">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-11/12" />
+            <Skeleton className="h-3 w-5/6" />
+          </div>
+        ))}
       </div>
     );
   }
