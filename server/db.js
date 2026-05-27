@@ -266,6 +266,41 @@ try {
   db.prepare("ALTER TABLE agents ADD COLUMN awaiting_input_since TEXT").run();
 }
 
+// Migrate: add `transcript_path` to sessions for fast active-session sweep.
+// Before this, the periodic compaction sweep had to do
+//   SELECT DISTINCT json_extract(events.data, '$.transcript_path') ...
+// across the entire events table (250k+ rows in mature DBs). Storing the
+// path on sessions lets the sweep query touch only active session rows.
+// Backfilled once from the events table; thereafter populated by
+// routes/hooks.js ensureSession() and the first event that carries
+// transcript_path.
+try {
+  db.prepare("SELECT transcript_path FROM sessions LIMIT 1").get();
+} catch {
+  db.prepare("ALTER TABLE sessions ADD COLUMN transcript_path TEXT").run();
+  // Backfill: pull the first transcript_path we can find in events for each
+  // session. Uses a correlated subquery so SQLite limits the inner scan to
+  // each session's rows (still bounded by events row count, but only runs
+  // once per DB lifetime).
+  db.prepare(
+    `UPDATE sessions SET transcript_path = (
+       SELECT json_extract(e.data, '$.transcript_path')
+       FROM events e
+       WHERE e.session_id = sessions.id
+         AND json_extract(e.data, '$.transcript_path') IS NOT NULL
+       LIMIT 1
+     ) WHERE transcript_path IS NULL`
+  ).run();
+}
+
+// Partial index for the periodic active-session sweep — covers only the
+// handful of rows the sweep actually reads.
+db.exec(
+  `CREATE INDEX IF NOT EXISTS idx_sessions_active_tp
+   ON sessions(status, transcript_path)
+   WHERE status='active' AND transcript_path IS NOT NULL`
+);
+
 // Migrate: replace legacy idle/connected agent statuses with waiting/working
 // and update the CHECK constraint to the 4-status model.
 // SQLite doesn't support ALTER CHECK, so we detect the old constraint and
