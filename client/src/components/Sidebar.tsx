@@ -398,7 +398,7 @@ export function Sidebar({ wsConnected, collapsed, onToggle }: SidebarProps) {
             onClick={() => scrollNavBy(-160)}
             aria-label={t("nav:scrollUp")}
             title={t("nav:scrollUp")}
-            className="absolute top-1.5 right-1.5 z-10 inline-flex items-center justify-center w-6 h-6 rounded-md border border-border bg-surface-2/90 text-gray-300 hover:text-gray-50 hover:bg-surface-3 shadow-md backdrop-blur-sm transition-colors animate-fade-in"
+            className="absolute top-1.5 right-[7px] z-10 inline-flex items-center justify-center w-6 h-6 rounded-md border border-border bg-surface-2/90 text-gray-300 hover:text-gray-50 hover:bg-surface-3 shadow-md backdrop-blur-sm transition-colors animate-fade-in"
           >
             <ChevronUp className="w-3.5 h-3.5" aria-hidden />
           </button>
@@ -409,7 +409,7 @@ export function Sidebar({ wsConnected, collapsed, onToggle }: SidebarProps) {
             onClick={() => scrollNavBy(160)}
             aria-label={t("nav:scrollDown")}
             title={t("nav:scrollDown")}
-            className="absolute bottom-1.5 right-1.5 z-10 inline-flex items-center justify-center w-6 h-6 rounded-md border border-border bg-surface-2/90 text-gray-300 hover:text-gray-50 hover:bg-surface-3 shadow-md backdrop-blur-sm transition-colors animate-fade-in"
+            className="absolute bottom-1.5 right-[7px] z-10 inline-flex items-center justify-center w-6 h-6 rounded-md border border-border bg-surface-2/90 text-gray-300 hover:text-gray-50 hover:bg-surface-3 shadow-md backdrop-blur-sm transition-colors animate-fade-in"
           >
             <ChevronDown className="w-3.5 h-3.5" aria-hidden />
           </button>
