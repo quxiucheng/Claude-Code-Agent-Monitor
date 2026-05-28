@@ -392,7 +392,7 @@ export function Sidebar({ wsConnected, collapsed, onToggle }: SidebarProps) {
             );
           })}
         </nav>
-        {navOverflow.up && (
+        {!collapsed && navOverflow.up && (
           <button
             type="button"
             onClick={() => scrollNavBy(-160)}
@@ -403,7 +403,7 @@ export function Sidebar({ wsConnected, collapsed, onToggle }: SidebarProps) {
             <ChevronUp className="w-3.5 h-3.5" aria-hidden />
           </button>
         )}
-        {navOverflow.down && (
+        {!collapsed && navOverflow.down && (
           <button
             type="button"
             onClick={() => scrollNavBy(160)}
