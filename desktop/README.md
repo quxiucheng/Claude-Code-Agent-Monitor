@@ -397,7 +397,7 @@ desktop/
 │   ├── main.ts          # main process entry — lifecycle, dialogs, wiring
 │   ├── server-host.ts   # ★ in-process Express boot, port discovery, adoption,
 │   │                    #   better-sqlite3 ABI patch, DB + discovery-file close,
-│   │                    #   getServerSnapshot() for the tray dropdown
+│   │                    #   /api/stats snapshot poller for the tray dropdown
 │   ├── window.ts        # BrowserWindow + persisted geometry; native macOS
 │   │                    #   titleBarStyle: 'default' (clear traffic-light row)
 │   ├── menu.ts          # native application menu

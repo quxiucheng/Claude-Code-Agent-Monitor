@@ -1231,7 +1231,11 @@ There is no `POST /api/updates/apply` and no self-restart helper, by design. Sel
 
 ## Tabby — Floating Cat Companion
 
-**Tabby** is a cute floating cat companion pinned to the bottom-right corner of every page in the dashboard. Always present, it turns the live session stream into an at-a-glance, reactive mascot you can also talk to. Tabby is built entirely on the existing WebSocket `eventBus` — there is **no new backend, no API key, and no new dependencies**.
+**Tabby** is a cute floating cat companion pinned to the bottom-right corner of every page in the dashboard. Always present, it turns the live session stream into an at-a-glance, reactive mascot you can also talk to.
+
+<p align="center">
+  <img src="images/tabby.png" alt="Tabby the reactive dashboard mascot, shown in various moods and with a speech bubble" width="100%">
+</p>
 
 ### Reactive mascot
 

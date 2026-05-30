@@ -2801,7 +2801,7 @@ npm run mcp:start:repl         # interactive CLI with tab completion</code></pre
           <div class="screenshot-gallery gallery-single">
             <div class="screenshot-card">
               <img src="../images/swagger.png" alt="Interactive Swagger UI rendering the dashboard's OpenAPI 3.0 spec, with collapsible endpoint groups, request/response schemas, and try-it-out controls" width="3024" height="1666" loading="lazy" decoding="async" />
-              <div class="screenshot-caption"><span class="caption-icon">📘</span> Swagger UI at <code>/api/docs</code> — auto-generated interactive playground for every REST endpoint. Try-it-out forms, request/response schema, auth headers, and curl snippets</div>
+              <div class="screenshot-caption"><span class="caption-icon">📘</span> <span>Swagger UI at <code>/api/docs</code> — auto-generated interactive playground for every REST endpoint. Try-it-out forms, request/response schema, auth headers, and curl snippets</span></div>
             </div>
           </div>
 
@@ -3173,7 +3173,7 @@ npm run mcp:start:repl         # interactive CLI with tab completion</code></pre
           <div class="screenshot-gallery gallery-single">
             <div class="screenshot-card">
               <img src="../images/import.png" alt="Settings page Import History section showing rescan default folder, scan custom path, and upload controls with progress output" width="3024" height="1746" loading="lazy" decoding="async" />
-              <div class="screenshot-caption"><span class="caption-icon">📥</span> Settings → Import History — rescan default paths, set a custom directory, or drag-and-drop <code>.gz</code> archives. Progress bar and result card show counts for every run</div>
+              <div class="screenshot-caption"><span class="caption-icon">📥</span> <span>Settings → Import History — rescan default paths, set a custom directory, or drag-and-drop <code>.gz</code> archives. Progress bar and result card show counts for every run</span></div>
             </div>
           </div>
 
@@ -4686,14 +4686,21 @@ xattr -cr "/Applications/Claude Code Monitor.app"</code></pre>
 
           <p>
             <strong>Tabby</strong> is a cute SVG cat companion pinned to the
-            <strong>bottom-right corner on every page</strong> of the dashboard. It is always
+            <strong>edges of every page</strong> of the dashboard. It is always
             present and turns the live session stream into glanceable, ambient feedback — calm when
             idle, alert when something needs attention, and celebratory when a run finishes. Tabby
             is built entirely on the existing <code>eventBus</code> WebSocket stream:
             <strong>no new backend, no API key, and no new dependencies</strong>. The component
             lives in <code>client/src/components/Tabby/</code> and can be toggled on or off in
-            <a href="#settings-page">Settings</a>.
+            Settings page.
           </p>
+
+          <div class="screenshot-gallery gallery-single">
+            <div class="screenshot-card">
+              <img src="../images/tabby.png" alt="Tabby Companio" width="3024" height="1746" loading="lazy" decoding="async" />
+              <div class="screenshot-caption"><span class="caption-icon">📥</span> Tabby Companion — a cute SVG cat in the edges of every page, reacting in real time to the live session stream with eight distinct moods and animations, auto-surfacing speech bubbles for notable events, and serving as the gateway to a status panel and Ask box</div>
+            </div>
+          </div>
 
           <h3>Reactive Mascot — Eight Moods</h3>
           <p>
@@ -4777,7 +4784,7 @@ xattr -cr "/Applications/Claude Code Monitor.app"</code></pre>
             </li>
             <li>
               <strong>Quick actions:</strong> jump to
-              <a href="#features">Run Claude</a>, Activity, Sessions, or errored sessions; mute
+              Run Claude, Activity, Sessions, or errored sessions; mute
               bubbles; clear alerts.
             </li>
             <li>
@@ -5609,6 +5616,52 @@ npm run install-hooks</code></pre>
           setTimeout(openScreenshot, 200);
         });
         window.addEventListener("hashchange", openScreenshot);
+      })();
+      (function () {
+        // Robust initial-hash navigation. Opening the page directly with a
+        // section hash (e.g. .../wiki/#tabby) lets the browser scroll BEFORE
+        // images, fonts, and reveal animations finish laying out, so the
+        // target shifts down afterwards and the page lands short of it. The
+        // sidebar links land correctly because they're clicked once layout has
+        // already settled. We reproduce that settled landing here by
+        // re-aligning the target (native block:"start", same as the sidebar)
+        // as the layout stabilizes — and we bail the instant the user scrolls
+        // so we never fight their input.
+        var SPECIAL = ["#feat-", "#ss-"]; // owned by the carousel/lightbox logic above
+        function isSpecial(h) {
+          return SPECIAL.some(function (p) { return h.indexOf(p) === 0; });
+        }
+        var hash = window.location.hash;
+        if (!hash || hash.length < 2 || isSpecial(hash)) return;
+
+        var cancelled = false;
+        function cancel() { cancelled = true; }
+        ["wheel", "touchstart", "keydown", "mousedown"].forEach(function (ev) {
+          window.addEventListener(ev, cancel, { passive: true, once: true });
+        });
+
+        function targetEl() {
+          var id = hash.slice(1);
+          try { return document.getElementById(decodeURIComponent(id)); }
+          catch (e) { return document.getElementById(id); }
+        }
+        function align() {
+          if (cancelled) return;
+          var el = targetEl();
+          if (el) el.scrollIntoView({ block: "start" });
+        }
+
+        align();
+        document.addEventListener("DOMContentLoaded", align);
+        window.addEventListener("load", function () {
+          align();
+          // Correct for late layout shifts (fonts, reveal animations, etc.).
+          [120, 350, 700, 1200].forEach(function (d) { setTimeout(align, d); });
+          // And once any still-loading image settles into its final height.
+          Array.prototype.forEach.call(document.images, function (img) {
+            if (!img.complete) img.addEventListener("load", align, { once: true });
+          });
+        });
       })();
       (function () {
         const btn = document.getElementById("sidebar-toggle");

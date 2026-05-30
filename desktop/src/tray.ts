@@ -22,8 +22,10 @@ export interface TrayActions {
   toggleOpenAtLogin: () => void;
   isOpenAtLogin: () => boolean;
   serverPort: () => number | null;
-  /** Live status snapshot fetched fresh each time the menu opens. */
+  /** Last cached status snapshot (refreshed by the background poller). */
   getSnapshot: () => ServerSnapshot | null;
+  /** Kick an immediate async snapshot refresh (fire-and-forget on menu open). */
+  refreshSnapshot: () => void;
   /** Prompt the same quit-confirmation dialog ⌘Q triggers. */
   requestQuit: () => void;
 }
@@ -116,7 +118,12 @@ export function createTray(actions: TrayActions): Tray {
   // Single click (left or right) opens the menu — the conventional macOS
   // menu-bar utility pattern. Opening the dashboard is the first action in
   // the menu, so it's still one click + Enter to surface the window.
-  const showMenu = (): void => tray.popUpContextMenu(buildMenu());
+  // We kick an async refresh on open so the next interaction reflects the
+  // very latest counts; this open renders the most recent cached snapshot.
+  const showMenu = (): void => {
+    actions.refreshSnapshot();
+    tray.popUpContextMenu(buildMenu());
+  };
   tray.on("click", showMenu);
   tray.on("right-click", showMenu);
   return tray;

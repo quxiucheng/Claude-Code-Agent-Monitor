@@ -117,10 +117,17 @@ function bootstrapOwnedServer(appRoot: string, serverModule: ServerModule): void
 }
 
 /**
- * Synchronous status snapshot for the tray menu — pulled straight from the
- * embedded SQLite handle (sub-millisecond). Returns `null` if the DB is not
- * yet available so the caller can render an "(unavailable)" row instead of
- * crashing on a fresh launch.
+ * Status snapshot for the tray menu. Sourced from the live server's
+ * `/api/stats` endpoint rather than a direct SQLite read, so the numbers stay
+ * correct whether we started the server in-process or adopted an external one
+ * already listening on the port. (A second SQLite handle opened from the
+ * desktop process can point at a different/empty database file — or fail
+ * against the read-only `.app` bundle path — which previously pinned the menu
+ * at 0/0/0.)
+ *
+ * The HTTP fetch is asynchronous but the tray menu is built synchronously on
+ * click, so we poll on an interval and serve the last cached value. Returns
+ * `null` until the first successful poll completes.
  */
 export interface ServerSnapshot {
   activeSessions: number;
@@ -128,36 +135,86 @@ export interface ServerSnapshot {
   eventsToday: number;
 }
 
+let lastSnapshot: ServerSnapshot | null = null;
+let snapshotTimer: ReturnType<typeof setInterval> | null = null;
+
 export function getServerSnapshot(): ServerSnapshot | null {
-  try {
-    const dbModule = require(path.join(resolveAppRoot(), "server", "db.js")) as {
-      db?: { open?: boolean; prepare: (sql: string) => { get: (...args: unknown[]) => unknown } };
-    };
-    const db = dbModule.db;
-    if (!db || db.open === false) return null;
-    const startOfDayIso = (() => {
-      const d = new Date();
-      d.setHours(0, 0, 0, 0);
-      return d.toISOString();
-    })();
-    const sessions = db
-      .prepare("SELECT COUNT(*) AS c FROM sessions WHERE status = 'active'")
-      .get() as { c: number };
-    const agents = db
-      .prepare("SELECT COUNT(*) AS c FROM agents WHERE status IN ('working','spawning')")
-      .get() as { c: number };
-    const events = db
-      .prepare("SELECT COUNT(*) AS c FROM events WHERE created_at >= ?")
-      .get(startOfDayIso) as { c: number };
-    return {
-      activeSessions: sessions.c,
-      workingAgents: agents.c,
-      eventsToday: events.c,
-    };
-  } catch (err) {
-    log.warn("getServerSnapshot failed", err);
-    return null;
-  }
+  return lastSnapshot;
+}
+
+/**
+ * Fetch a fresh snapshot from the running server's stats API. Resolves to
+ * `null` on any error (server not up yet, non-200, malformed JSON) so the
+ * poller can simply keep the previous cached value.
+ */
+function fetchSnapshotOverHttp(port: number, timeoutMs = 2500): Promise<ServerSnapshot | null> {
+  // Server expects tz_offset in minutes (Date#getTimezoneOffset) to compute
+  // "events today" against the user's local midnight.
+  const tzOffset = new Date().getTimezoneOffset();
+  return new Promise((resolve) => {
+    const req = http.get(
+      {
+        host: "127.0.0.1",
+        port,
+        path: `/api/stats?tz_offset=${tzOffset}`,
+        timeout: timeoutMs,
+      },
+      (res) => {
+        if (res.statusCode !== 200) {
+          res.resume();
+          resolve(null);
+          return;
+        }
+        let buf = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk) => (buf += chunk));
+        res.on("end", () => {
+          try {
+            const j = JSON.parse(buf) as {
+              active_sessions?: number;
+              events_today?: number;
+              agents_by_status?: Record<string, number>;
+            };
+            resolve({
+              activeSessions: Number(j.active_sessions) || 0,
+              // "working" specifically — waiting/idle agents are not working.
+              workingAgents: Number(j.agents_by_status?.working) || 0,
+              eventsToday: Number(j.events_today) || 0,
+            });
+          } catch {
+            resolve(null);
+          }
+        });
+      }
+    );
+    req.on("error", () => resolve(null));
+    req.on("timeout", () => {
+      req.destroy();
+      resolve(null);
+    });
+  });
+}
+
+/** Poll once now and update the cache. Safe to call on demand (e.g. menu open). */
+export async function refreshServerSnapshot(port: number | null): Promise<void> {
+  if (!port) return;
+  const snap = await fetchSnapshotOverHttp(port);
+  if (snap) lastSnapshot = snap;
+}
+
+/**
+ * Begin polling the server's stats endpoint so the tray menu always reflects
+ * recent state. Idempotent — a second call (e.g. after "Restart Server") is a
+ * no-op. The timer is unref'd so it never keeps the event loop alive on quit.
+ */
+export function startSnapshotPolling(getPort: () => number | null, intervalMs = 4000): void {
+  if (snapshotTimer) return;
+  const tick = (): void => {
+    void refreshServerSnapshot(getPort());
+  };
+  tick();
+  snapshotTimer = setInterval(tick, intervalMs);
+  snapshotTimer.unref?.();
 }
 
 /**
