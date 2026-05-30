@@ -42,12 +42,23 @@ export function matchIntent(query: string, status: TabbyStatus): AskResult {
     };
   }
 
+  if (has("waiting", "stuck", "blocked", "input", "my turn", "paused")) {
+    return {
+      kind: "answer",
+      text:
+        status.waitingCount > 0
+          ? `${status.waitingCount} session${plural(status.waitingCount)} waiting on you 👀`
+          : "nothing's waiting on you right now 🐾",
+    };
+  }
+
   if (has("running", "active", "live", "going on", "happening", "in progress")) {
+    const tail = status.waitingCount > 0 ? ` (${status.waitingCount} waiting on you 👀)` : "";
     return {
       kind: "answer",
       text:
         status.liveCount > 0
-          ? `${status.liveCount} session${plural(status.liveCount)} live right now 🐾`
+          ? `${status.liveCount} session${plural(status.liveCount)} live right now 🐾${tail}`
           : "nothing's running right now — all quiet.",
     };
   }
@@ -55,7 +66,7 @@ export function matchIntent(query: string, status: TabbyStatus): AskResult {
   if (has("status", "summary", "overview", "how are things", "how's it", "how is it")) {
     return {
       kind: "answer",
-      text: `${status.liveCount} live · ${status.errorCount} errored · ${
+      text: `${status.liveCount} live · ${status.waitingCount} waiting · ${status.errorCount} errored · ${
         status.connected ? "connected" : "offline"
       }.`,
     };

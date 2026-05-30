@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { eventBus } from "../../lib/eventBus";
+import { api } from "../../lib/api";
 import type { WSMessage } from "../../lib/types";
 import {
   initialTabbyState,
@@ -16,6 +17,7 @@ import {
   deriveMood,
   statusOf,
   clearErrors,
+  seedSessions,
   type Mood,
   type TabbyState,
   type TabbyStatus,
@@ -68,6 +70,24 @@ export function useTabbyBrain(): TabbyBrain {
     clearTimeout(bubbleTimer.current);
     setBubble(text);
     bubbleTimer.current = setTimeout(() => setBubble(null), BUBBLE_MS);
+  }, []);
+
+  // Seed from the REST snapshot on mount so counts are accurate immediately —
+  // the brain otherwise only learns about sessions from WS deltas that arrive
+  // after it mounts, showing "0 live" on a fresh load even when sessions exist.
+  // Pull a generous page of non-finished sessions; live WS deltas refine it.
+  useEffect(() => {
+    let cancelled = false;
+    api.sessions
+      .list({ status: "active", limit: 100 })
+      .then((res) => {
+        if (cancelled) return;
+        setState((prev) => seedSessions(prev, res.sessions, Date.now()));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Subscribe to the live stream and connection status.

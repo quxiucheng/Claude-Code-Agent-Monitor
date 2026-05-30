@@ -5,6 +5,7 @@ import {
   deriveMood,
   statusOf,
   clearErrors,
+  seedSessions,
   HAPPY_MS,
   WORRIED_MS,
   STUCK_MS,
@@ -193,6 +194,33 @@ describe("reduceTabby counts and pulses", () => {
     const r = reduceTabby(s, { type: "import.progress", data: {} as never, timestamp: "x" }, T0);
     expect(r.state).toBe(s);
     expect(r.pulse).toBe(null);
+  });
+});
+
+describe("seedSessions", () => {
+  it("hydrates live/waiting/errored counts from a REST snapshot", () => {
+    const s = seedSessions(
+      initialTabbyState(T0),
+      [
+        { id: "a", status: "active" },
+        { id: "b", status: "active", awaiting_input_since: "2026-05-29T00:00:00Z" },
+        { id: "c", status: "error" },
+        { id: "d", status: "completed" }, // ignored
+      ],
+      T0
+    );
+    const st = statusOf(s);
+    expect(st.liveCount).toBe(2); // a + b
+    expect(st.waitingCount).toBe(1); // b
+    expect(st.errorCount).toBe(1); // c
+  });
+});
+
+describe("statusOf waiting", () => {
+  it("counts a waiting session as both live and waiting", () => {
+    let s = initialTabbyState(T0);
+    ({ state: s } = reduceTabby(s, waitingMsg("a"), T0));
+    expect(statusOf(s)).toMatchObject({ liveCount: 1, waitingCount: 1, errorCount: 0 });
   });
 });
 

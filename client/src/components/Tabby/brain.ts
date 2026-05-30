@@ -36,7 +36,10 @@ export type TabbyPulse =
   | null;
 
 export interface TabbyStatus {
+  /** Active + waiting sessions (everything not finished/errored). */
   liveCount: number;
+  /** Subset of liveCount currently blocked on user input. */
+  waitingCount: number;
   errorCount: number;
   connected: boolean;
 }
@@ -88,12 +91,15 @@ export function initialTabbyState(now: number): TabbyState {
 
 export function statusOf(state: TabbyState): TabbyStatus {
   let liveCount = 0;
+  let waitingCount = 0;
   let errorCount = 0;
   for (const s of Object.values(state.sessions)) {
-    if (s === "active" || s === "waiting") liveCount++;
-    else if (s === "error") errorCount++;
+    if (s === "active" || s === "waiting") {
+      liveCount++;
+      if (s === "waiting") waitingCount++;
+    } else if (s === "error") errorCount++;
   }
-  return { liveCount, errorCount, connected: state.connected };
+  return { liveCount, waitingCount, errorCount, connected: state.connected };
 }
 
 /**
@@ -237,6 +243,28 @@ export function reduceTabby(
     default:
       return { state, pulse: null };
   }
+}
+
+/**
+ * Hydrate session tracking from a REST snapshot (the same data the dashboard
+ * fetches on load). Without this, the brain only learns about sessions from
+ * live WS deltas that arrive *after* it mounts, so a freshly-loaded page shows
+ * "0 live" even when sessions already exist. Merges in non-finished sessions;
+ * never clears the error window. Live WS deltas continue to refine this.
+ */
+export function seedSessions(
+  state: TabbyState,
+  rows: ReadonlyArray<{ id: string; status: string; awaiting_input_since?: string | null }>,
+  now: number
+): TabbyState {
+  const sessions = { ...state.sessions };
+  for (const r of rows) {
+    if (!r || !r.id) continue;
+    if (r.status === "error") sessions[r.id] = "error";
+    else if (r.status === "active") sessions[r.id] = r.awaiting_input_since ? "waiting" : "active";
+    // completed / abandoned: leave untracked.
+  }
+  return { ...state, sessions, lastActivityAt: now };
 }
 
 /** Drop all errored sessions from tracking (used by "clear alerts"). */

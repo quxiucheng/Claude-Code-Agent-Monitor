@@ -81,7 +81,9 @@ describe("Tabby widget", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /open tabby companion/i }));
     const panel = screen.getByRole("dialog", { name: /tabby companion/i });
-    expect(within(panel).getByText(/2 live/i)).toBeInTheDocument();
+    // The "live" stat chip shows value 2 next to its label.
+    const liveChip = within(panel).getByText("live").closest("div")!;
+    expect(within(liveChip).getByText("2")).toBeInTheDocument();
   });
 
   it("respects the enabled preference", () => {
