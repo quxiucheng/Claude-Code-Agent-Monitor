@@ -29,16 +29,97 @@ try {
 }
 const path = require("path");
 const fs = require("fs");
+const { getDataDir } = require("./lib/claude-home");
 
-// Resolution order: explicit DASHBOARD_DB_PATH wins; otherwise the file lives
-// in DASHBOARD_DATA_DIR (set by hosts like the desktop app to keep writable
-// state outside a read-only bundle); otherwise the repo-local `data/` dir.
-const DB_PATH =
-  process.env.DASHBOARD_DB_PATH ||
-  path.join(process.env.DASHBOARD_DATA_DIR || path.join(__dirname, "..", "data"), "dashboard.db");
+/**
+ * Seed `targetPath` from the richest pre-existing database when none exists
+ * there yet. Best-effort and strictly non-destructive: it never overwrites the
+ * target and never modifies or deletes the sources, so existing web users keep
+ * an untouched backup at the old path.
+ *
+ * Earlier builds kept the DB per-host — the repo-local `data/` dir for
+ * `npm start`/`dev`, and the desktop app's per-user `userData/data` (handed in
+ * via DASHBOARD_LEGACY_DB_PATH). When both exist we copy the larger one (more
+ * rows ≈ larger file) so the fuller history wins.
+ */
+function migrateLegacyDatabase(targetPath) {
+  try {
+    // Respect explicit overrides: if the operator pinned the path, they own it.
+    if (process.env.DASHBOARD_DB_PATH || process.env.DASHBOARD_DATA_DIR) return;
+    if (fs.existsSync(targetPath)) return; // already migrated, or in active use
+
+    const candidates = [
+      process.env.DASHBOARD_LEGACY_DB_PATH, // desktop app's old per-user DB
+      path.join(__dirname, "..", "data", "dashboard.db"), // repo-local `npm start` DB
+    ].filter((p) => p && fs.existsSync(p));
+    if (candidates.length === 0) return;
+
+    const source = candidates
+      .map((p) => ({ p, size: fs.statSync(p).size }))
+      .sort((a, b) => b.size - a.size)[0].p;
+
+    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+
+    // `VACUUM INTO` produces a consistent, fully-checkpointed single-file copy —
+    // safe even when another process still holds the source open in WAL mode,
+    // and it never touches the source. A raw file copy of a live WAL database,
+    // by contrast, can capture an inconsistent .db/-wal/-shm trio and yield a
+    // "database disk image is malformed" file, so we deliberately do NOT fall
+    // back to one. `VACUUM INTO` ships in every SQLite the project uses (3.27+:
+    // better-sqlite3 and node:sqlite both support it).
+    const src = new Database(source);
+    try {
+      src.exec(`VACUUM INTO '${targetPath.replace(/'/g, "''")}'`);
+    } finally {
+      src.close();
+    }
+
+    // Carry over the one-time legacy-import marker so the (idempotent) backfill
+    // doesn't needlessly re-run against the migrated copy.
+    const srcMarker = path.join(path.dirname(source), ".legacy-import.done");
+    const dstMarker = path.join(path.dirname(targetPath), ".legacy-import.done");
+    if (fs.existsSync(srcMarker) && !fs.existsSync(dstMarker)) {
+      try {
+        fs.copyFileSync(srcMarker, dstMarker);
+      } catch {
+        /* non-fatal */
+      }
+    }
+
+    console.log(`[db] migrated existing database → ${targetPath} (from ${source})`);
+  } catch (err) {
+    // Migration is an optimization, never a hard requirement. On any failure,
+    // remove a possibly-partial target so the next start retries (or falls back
+    // to a fresh empty DB) instead of opening a half-written, corrupt file. The
+    // source is never modified, so nothing is lost.
+    for (const suffix of ["", "-wal", "-shm"]) {
+      try {
+        fs.rmSync(targetPath + suffix, { force: true });
+      } catch {
+        /* best effort */
+      }
+    }
+    console.warn("[db] legacy database migration skipped:", err?.message || err);
+  }
+}
+
+// Resolution order: explicit DASHBOARD_DB_PATH wins; otherwise the file lives in
+// the shared data dir — DASHBOARD_DATA_DIR if set, else the canonical user-global
+// `~/.claude/agent-dashboard/` (see getDataDir). Resolving every launch path to
+// the same file is what lets the web app and the native apps share ONE database.
+const DB_PATH = process.env.DASHBOARD_DB_PATH || path.join(getDataDir(), "dashboard.db");
 const DB_DIR = path.dirname(DB_PATH);
 
 fs.mkdirSync(DB_DIR, { recursive: true });
+
+// One-time, non-destructive migration into the shared location. Earlier builds
+// kept the database per-host: the repo-local `data/` dir for `npm start`/`dev`,
+// and the desktop app's per-user `userData/data` (handed to us via
+// DASHBOARD_LEGACY_DB_PATH). If the canonical DB doesn't exist yet, seed it from
+// the richest legacy copy found so existing users keep all their history. The
+// source files are never modified or deleted, and an existing canonical DB is
+// never overwritten — so this is safe to run on every startup.
+migrateLegacyDatabase(DB_PATH);
 
 const db = new Database(DB_PATH);
 
