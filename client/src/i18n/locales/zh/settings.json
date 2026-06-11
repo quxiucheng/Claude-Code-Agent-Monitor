@@ -228,5 +228,14 @@
     "save": "保存",
     "create": "创建",
     "cancel": "取消"
+  },
+  "alertsHub": {
+    "title": "告警与通知",
+    "description": "在一个地方定义告警规则、将其路由到 Webhook 渠道，并查看已触发的告警。",
+    "tabRules": "规则",
+    "tabChannels": "渠道",
+    "tabActivity": "动态",
+    "rulesHint": "触发告警的条件。在服务端针对实时事件流进行评估。",
+    "rulesEmptyHint": "添加规则，开始对错误、闲置、卡住的代理或令牌阈值进行告警。"
   }
 }

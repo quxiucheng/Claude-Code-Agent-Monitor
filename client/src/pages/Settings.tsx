@@ -46,7 +46,6 @@ import {
   Settings as SettingsIcon,
   FolderOpen,
   Info,
-  Webhook,
 } from "lucide-react";
 import { api } from "../lib/api";
 import { eventBus } from "../lib/eventBus";
@@ -56,7 +55,7 @@ import { subscribeToPush, unsubscribeFromPush } from "../lib/push";
 import { Tip } from "../components/Tip";
 import { ImportHistory } from "../components/ImportHistory";
 import { Skeleton } from "../components/Skeleton";
-import { WebhookSettings } from "../components/WebhookSettings";
+import { AlertsNotifications } from "../components/AlertsNotifications";
 import type { ModelPricing, WSMessage } from "../lib/types";
 
 // ─── Notification preferences ───
@@ -1190,14 +1189,14 @@ export function Settings() {
         </div>
       </section>
 
-      {/* ─── WEBHOOK NOTIFICATIONS ─── */}
+      {/* ─── ALERTS & NOTIFICATIONS ─── */}
       <section>
         <h3 className="text-sm font-medium text-gray-300 flex items-center gap-2 mb-1">
-          <Webhook className="w-4 h-4 text-gray-500" />
-          {t("webhooks.title")}
+          <BellRing className="w-4 h-4 text-gray-500" />
+          {t("alertsHub.title")}
         </h3>
-        <p className="text-xs text-gray-500 mb-4">{t("webhooks.description")}</p>
-        <WebhookSettings />
+        <p className="text-xs text-gray-500 mb-4">{t("alertsHub.description")}</p>
+        <AlertsNotifications />
       </section>
 
       {/* ─── DATA MANAGEMENT ─── */}

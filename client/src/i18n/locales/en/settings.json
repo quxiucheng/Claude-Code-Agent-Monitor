@@ -228,5 +228,14 @@
     "save": "Save",
     "create": "Create",
     "cancel": "Cancel"
+  },
+  "alertsHub": {
+    "title": "Alerts & Notifications",
+    "description": "Define alert rules, route them to webhook channels, and review what has fired — all in one place.",
+    "tabRules": "Rules",
+    "tabChannels": "Channels",
+    "tabActivity": "Activity",
+    "rulesHint": "Conditions that trigger an alert. Evaluated server-side against the live event stream.",
+    "rulesEmptyHint": "Add a rule to start alerting on errors, inactivity, stuck agents, or token thresholds."
   }
 }

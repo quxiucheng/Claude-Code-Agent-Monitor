@@ -228,5 +228,14 @@
     "save": "Lưu",
     "create": "Tạo",
     "cancel": "Hủy"
+  },
+  "alertsHub": {
+    "title": "Cảnh báo & Thông báo",
+    "description": "Định nghĩa quy tắc cảnh báo, định tuyến tới các kênh webhook và xem những gì đã kích hoạt — tất cả ở một nơi.",
+    "tabRules": "Quy tắc",
+    "tabChannels": "Kênh",
+    "tabActivity": "Hoạt động",
+    "rulesHint": "Điều kiện kích hoạt cảnh báo. Được đánh giá ở phía máy chủ trên luồng sự kiện trực tiếp.",
+    "rulesEmptyHint": "Thêm quy tắc để bắt đầu cảnh báo về lỗi, không hoạt động, agent bị treo hoặc ngưỡng token."
   }
 }
