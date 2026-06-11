@@ -3050,16 +3050,6 @@
               </div>
             </div>
           </div>
-          <div class="showcase-card" data-cat="system" data-title="Desktop App on Windows">
-            <div class="showcase-img">
-              <img src="images/windows_app.png" alt="Claude Code Monitor running as a native desktop app on Windows, showing the Activity Feed, native Windows window menu, and Tabby companion" loading="lazy" />
-              <span class="showcase-expand-icon">⤢</span>
-              <div class="showcase-overlay">
-                <h4>Desktop App on Windows</h4>
-                <p>The same dashboard as a native Windows app — real window with the native Windows menu, embedded server, live Activity Feed, and the Tabby companion. Notification-area (tray) icon included.</p>
-              </div>
-            </div>
-          </div>
           <div class="showcase-card" data-cat="system" data-title="VS Code Extension">
             <div class="showcase-img">
               <img src="vscode-extension/vscode.png" alt="VS Code extension sidebar" loading="lazy" />
@@ -3381,13 +3371,10 @@
             <p>
               On first boot the app installs Claude Code hooks and starts background services
               automatically - an install-only user gets monitoring with essentially no manual
-              setup. Your SQLite database lives in a per-user data dir -
-              <code>~/Library/Application Support/Claude Code Monitor/data/</code> on macOS,
-              <code>%APPDATA%\Claude Code Monitor\data\</code> on Windows - outside the app
+              setup. Your SQLite database lives in a per-user data dir outside the app
               bundle, so it survives reinstalls and updates. The app also recovers your login-shell
               <code>PATH</code> at startup, so <em>Run Claude</em> can find and launch the
-              <code>claude</code> CLI. Notifications are delivered as <strong>native OS toasts</strong>
-              from the embedded server (Web Push doesn't work reliably inside Electron).
+              <code>claude</code> CLI.
             </p>
           </div>
           <div class="how-step">

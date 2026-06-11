@@ -82,7 +82,7 @@
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
     />
-    <link rel="stylesheet" href="style.css?v=7" />
+    <link rel="stylesheet" href="style.css?v=9" />
 
     <!-- Global page styles -->
     <style>
@@ -2165,28 +2165,13 @@ npm run mcp:start:repl         # interactive CLI with tab completion</code></pre
           <div class="diagram-wrap">
             <!-- prettier-ignore -->
             <div class="mermaid">
-              sequenceDiagram
-                participant CC as Claude Code
-                participant HH as hook-handler.js
-                participant API as POST /api/hooks/event
-                participant TX as SQLite Transaction
-                participant WS as WebSocket.broadcast()
-                participant UI as React Client
-
-                CC->>HH: stdin JSON payload
-                Note over HH: Reads stdin to EOF<br/>Parses JSON and adds hook_type
-                HH->>API: POST {"hook_type":"PreToolUse","data":{...}}
-                API->>TX: BEGIN TRANSACTION
-                TX->>TX: ensureSession(session_id)
-                Note over TX: Creates session + main agent<br/>on first contact
-                TX->>TX: process by hook_type
-                Note over TX: SessionStart &rarr; stamp awaiting flag (Waiting)<br/>UserPromptSubmit &rarr; clear flag, agent working<br/>PreToolUse &rarr; clear flag, agent working<br/>PostToolUse &rarr; clear flag, clear current_tool<br/>Stop non-error &rarr; agent waiting<br/>Stop error &rarr; agent error, session error<br/>SubagentStop &rarr; complete matched subagent<br/>(does NOT touch flag) &mdash; fire-and-forget<br/>scanAndImportSubagents emits per-tool<br/>Pre/PostToolUse events under each<br/>subagent's own agent_id<br/>Notification permission &rarr; stamp flag<br/>SessionEnd &rarr; drop flag, mark all completed
-                TX->>TX: insertEvent(...)
-                TX->>TX: COMMIT
-                API->>WS: broadcast("agent_updated", agent)
-                API->>WS: broadcast("new_event", event)
-                WS->>UI: {"type":"agent_updated","data":{...}}
-                UI->>UI: eventBus.publish -> page re-renders
+              flowchart TD
+                CC["Claude Code"] -->|stdin JSON| HH["hook-handler.js<br/>parse JSON,<br/>add hook_type"]
+                HH -->|POST| API["Express<br/>/api/hooks/event"]
+                API --> TX["SQLite txn:<br/>ensureSession,<br/>process by hook_type,<br/>insertEvent, COMMIT"]
+                TX --> RULES["per hook_type:<br/>stamp / clear awaiting flag,<br/>track current tool,<br/>working / waiting / error,<br/>complete subagents,<br/>SessionEnd &rarr; all done"]
+                RULES -->|broadcast| WS["WebSocket:<br/>agent_updated,<br/>new_event"]
+                WS -->|publish| UI["React Client<br/>re-renders"]
             </div>
             <p class="diagram-label">
               Complete event ingestion from hook fire to browser re-render
@@ -2197,27 +2182,11 @@ npm run mcp:start:repl         # interactive CLI with tab completion</code></pre
           <div class="diagram-wrap">
             <!-- prettier-ignore -->
             <div class="mermaid">
-              sequenceDiagram
-                participant Page as React Page
-                participant API as api.ts
-                participant Server as Express
-                participant EB as eventBus
-                participant WS as WebSocket
-
-                Note over Page: Component mounts
-                Page->>API: load() via useEffect
-                API->>Server: GET /api/sessions (or agents, events, stats)
-                Server-->>API: JSON response
-                API-->>Page: setState(data)
-                Note over Page: Subscribes to live updates
-                Page->>EB: eventBus.subscribe(handler)
-                loop Real-time updates
-                  WS->>EB: eventBus.publish(msg)
-                  EB->>Page: handler(msg)
-                  Page->>Page: reload or optimistic update
-                end
-                Note over Page: Component unmounts
-                Page->>EB: unsubscribe()
+              flowchart TD
+                MOUNT["React Page mounts"] -->|load| API["api.ts &rarr; Express:<br/>GET sessions,<br/>agents, events, stats"]
+                API -->|JSON| PAGE["setState,<br/>React Page renders"]
+                PAGE -->|subscribe| LIVE["Live updates loop:<br/>WS &rarr; eventBus.publish<br/>&rarr; handler &rarr;<br/>reload / optimistic update"]
+                LIVE -->|unmount| UNMOUNT["eventBus.unsubscribe()"]
             </div>
             <p class="diagram-label">Initial load + WebSocket subscription lifecycle</p>
           </div>
@@ -3236,41 +3205,15 @@ npm run mcp:start:repl         # interactive CLI with tab completion</code></pre
           <div class="diagram-wrap">
             <!-- prettier-ignore -->
             <div class="mermaid">
-              sequenceDiagram
-                autonumber
-                participant UI as Settings UI
-                participant API as /api/import/upload
-                participant M as multer (disk)
-                participant AR as archive.js
-                participant IMP as importFromDirectory
-                participant DB as SQLite
-                participant WS as WebSocket
-
-                UI->>API: POST multipart files[]
-                API->>M: uploadMiddleware
-                M->>M: mkTempDir per-request\nstored on req._ccamUploadDir
-                M->>M: fileFilter rejects unsupported\n(tracked in req._ccamRejected)
-                API->>AR: mkTempDir workDir
-                loop per uploaded file
-                  API->>AR: extractInto(src, workDir, name)
-                  AR->>AR: safeJoin rejects absolute / ..
-                  AR->>AR: enforce MAX_EXTRACT_BYTES
-                  alt bomb / oversized
-                    AR-->>API: ExtractionLimitError
-                    API-->>UI: 413 EXTRACTION_LIMIT_EXCEEDED
-                    API-->>WS: import.progress {phase: error}
-                  else ok
-                    AR-->>API: {extracted, skipped}
-                  end
-                  API->>WS: import.progress {phase: extract}
-                end
-                API->>IMP: importFromDirectory(workDir)
-                IMP->>IMP: collectJsonlFiles recursive
-                IMP->>IMP: parseSessionFile per JSONL
-                IMP->>DB: importSession in one transaction
-                IMP-->>WS: import.progress {phase: parse, complete}
-                API-->>UI: 200 {imported, backfilled, skipped,\nerrors, rejected_files}
-                API->>AR: rmTempDir workDir + req._ccamUploadDir
+              flowchart TD
+                UI["Settings UI"] -->|upload| API["/api/import/upload"]
+                API -->|middleware| M["multer (disk):<br/>per-request tempDir,<br/>fileFilter rejects<br/>unsupported"]
+                M --> EX["per file:<br/>extractInto + safeJoin<br/>(no absolute / ..),<br/>enforce MAX_EXTRACT_BYTES"]
+                EX --> DEC{"bomb /<br/>oversized?"}
+                DEC -->|yes| ERR["413<br/>EXTRACTION_LIMIT_<br/>EXCEEDED"]
+                DEC -->|no| IMP["importFromDirectory:<br/>collectJsonlFiles,<br/>parseSessionFile,<br/>importSession (1 txn)<br/>&rarr; SQLite"]
+                IMP -->|progress| RESP["200: imported,<br/>backfilled, skipped,<br/>errors, rejected_files"]
+                RESP --> CLEAN["rmTempDir (finally)"]
             </div>
             <p class="diagram-label">
               Upload path: multipart → safe extract → walk → parse → import — every temp dir
@@ -3905,19 +3848,13 @@ ccam-export all --output backup.json</code></pre>
           <div class="diagram-wrap">
             <!-- prettier-ignore -->
             <div class="mermaid">
-              sequenceDiagram
-                participant CC as Claude Code
-                participant SH as statusline-command.sh
-                participant PY as statusline.py
-                participant GIT as git CLI
-
-                CC->>SH: stdin (JSON payload)
-                SH->>PY: Pipe stdin through (PYTHONUTF8=1)
-                PY->>PY: Parse JSON (model, cwd, context_window, cost)
-                PY->>GIT: git symbolic-ref --short HEAD
-                GIT-->>PY: Branch name
-                PY->>PY: Build ANSI-colored segments (incl. tokens by direction, cost)
-                PY-->>CC: stdout (formatted statusline)
+              flowchart TD
+                CC["Claude Code"] -->|stdin| SH["statusline-command.sh"]
+                SH -->|pipe| PY["statusline.py"]
+                PY --> PARSE["parse JSON:<br/>model, cwd,<br/>context_window, cost"]
+                PARSE -->|git ref| GIT["git CLI"]
+                GIT -->|branch| BUILD["build ANSI segments:<br/>tokens by direction,<br/>cost"]
+                BUILD -->|stdout| CC
             </div>
             <p class="diagram-label">
               Statusline rendering pipeline — invoked on each Claude Code update
@@ -5596,7 +5533,7 @@ npm run install-hooks</code></pre>
     </div>
     <!-- /.wiki-layout -->
 
-    <script src="script.js?v=17" defer></script>
+    <script src="script.js?v=22" defer></script>
     <script>
       (function () {
         var carousel = document.getElementById("feature-carousel");
