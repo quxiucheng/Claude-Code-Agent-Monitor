@@ -397,7 +397,7 @@ export function AlertsNotifications() {
                 <label className="block text-xs text-gray-400">
                   <span className="inline-flex items-center gap-1">
                     {t("rules.form.name")}
-                    <FieldHelp description="A label for this rule. Shows in the alert feed and is included in webhook payloads (rule_name). e.g. 'Repeated Bash errors'." />
+                    <FieldHelp description={t("rules.help.name")} />
                   </span>
                   <input
                     type="text"
@@ -410,10 +410,7 @@ export function AlertsNotifications() {
                 <label className="block text-xs text-gray-400">
                   <span className="inline-flex items-center gap-1">
                     {t("rules.form.type")}
-                    <FieldHelp
-                      title="Rule type"
-                      description="What this rule watches. event_pattern matches the live event stream; inactivity = an active session goes quiet; status_duration = an agent is stuck in a state; token_threshold = a session's token usage crosses a limit."
-                    />
+                    <FieldHelp title={t("rules.form.type")} description={t("rules.help.type")} />
                   </span>
                   <div className="relative mt-1">
                     <select
@@ -440,8 +437,8 @@ export function AlertsNotifications() {
                     <span className="inline-flex items-center gap-1">
                       {t("rules.form.eventType")}
                       <FieldHelp
-                        title="Event type"
-                        description="The Claude Code hook event to match. Leave blank to match any event type. Matched exactly (case-sensitive)."
+                        title={t("rules.form.eventType")}
+                        description={t("rules.help.eventType")}
                         examples={EVENT_TYPE_EXAMPLES}
                       />
                     </span>
@@ -457,8 +454,8 @@ export function AlertsNotifications() {
                     <span className="inline-flex items-center gap-1">
                       {t("rules.form.toolName")}
                       <FieldHelp
-                        title="Tool name"
-                        description="The tool the agent invoked (on PreToolUse / PostToolUse events). Leave blank to match any tool. Matched exactly."
+                        title={t("rules.form.toolName")}
+                        description={t("rules.help.toolName")}
                         examples={TOOL_NAME_EXAMPLES}
                       />
                     </span>
@@ -474,8 +471,8 @@ export function AlertsNotifications() {
                     <span className="inline-flex items-center gap-1">
                       {t("rules.form.summaryContains")}
                       <FieldHelp
-                        title="Summary contains"
-                        description="Case-insensitive substring match against the event's summary text. Useful for catching errors or specific phrases. Leave blank to skip."
+                        title={t("rules.form.summaryContains")}
+                        description={t("rules.help.summaryContains")}
                         examples={SUMMARY_EXAMPLES}
                       />
                     </span>
@@ -490,7 +487,7 @@ export function AlertsNotifications() {
                   <label className="block text-xs text-gray-400">
                     <span className="inline-flex items-center gap-1">
                       {t("rules.form.count")}
-                      <FieldHelp description="How many matching events must occur before the alert fires. 1 = fire on the first match. Set above 1 to detect bursts (e.g. repeated errors)." />
+                      <FieldHelp description={t("rules.help.count")} />
                     </span>
                     <input
                       type="number"
@@ -504,7 +501,7 @@ export function AlertsNotifications() {
                     <label className="block text-xs text-gray-400">
                       <span className="inline-flex items-center gap-1">
                         {t("rules.form.windowMinutes")}
-                        <FieldHelp description="The rolling look-back window for the count. e.g. count 5 + window 2 means '5 matching events within any 2-minute span'." />
+                        <FieldHelp description={t("rules.help.window")} />
                       </span>
                       <input
                         type="number"
@@ -524,7 +521,7 @@ export function AlertsNotifications() {
                     <label className="block text-xs text-gray-400">
                       <span className="inline-flex items-center gap-1">
                         {t("rules.form.agentStatus")}
-                        <FieldHelp description="Which agent state to watch. 'working' catches agents stuck mid-task; 'waiting' catches agents blocked on input/permission." />
+                        <FieldHelp description={t("rules.help.status")} />
                       </span>
                       <div className="relative mt-1">
                         <select
@@ -543,11 +540,11 @@ export function AlertsNotifications() {
                     <span className="inline-flex items-center gap-1">
                       {t("rules.form.minutes")}
                       <FieldHelp
-                        description={
+                        description={t(
                           form.rule_type === "inactivity"
-                            ? "Fire when an active session has had no events for this many minutes (a stalled or forgotten session)."
-                            : "Fire when an agent stays in the selected status with no activity for this many minutes (a stuck agent)."
-                        }
+                            ? "rules.help.minutesInactivity"
+                            : "rules.help.minutesStatus"
+                        )}
                       />
                     </span>
                     <input
@@ -566,7 +563,7 @@ export function AlertsNotifications() {
                   <label className="block text-xs text-gray-400">
                     <span className="inline-flex items-center gap-1">
                       {t("rules.form.totalTokens")}
-                      <FieldHelp description="Fire when a session's cumulative tokens (input + output + cache read + cache write) cross this number. e.g. 1000000 = 1M tokens." />
+                      <FieldHelp description={t("rules.help.totalTokens")} />
                     </span>
                     <input
                       type="number"
@@ -583,7 +580,7 @@ export function AlertsNotifications() {
                 <label className="block text-xs text-gray-400">
                   <span className="mb-1.5 flex items-center gap-1">
                     {t("rules.form.cooldown")}
-                    <FieldHelp description="Minimum seconds between repeat alerts for the same rule + session + agent. Prevents noisy duplicates. Default 300 (5 min); 0 = no cooldown." />
+                    <FieldHelp description={t("rules.help.cooldown")} />
                   </span>
                   <input
                     type="number"

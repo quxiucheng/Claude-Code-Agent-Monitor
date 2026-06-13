@@ -50,7 +50,21 @@
       "totalTokens": "Tổng token",
       "cooldown": "Thời gian chờ (giây)"
     },
-    "deleteTitle": "Xóa quy tắc cảnh báo?"
+    "deleteTitle": "Xóa quy tắc cảnh báo?",
+    "help": {
+      "name": "Nhãn cho quy tắc này. Hiển thị trong danh sách cảnh báo và đính kèm trong payload webhook (rule_name). vd: 'Lỗi Bash lặp lại'.",
+      "type": "Quy tắc theo dõi gì. event_pattern khớp luồng sự kiện trực tiếp; inactivity = phiên đang hoạt động im lặng; status_duration = agent kẹt ở một trạng thái; token_threshold = token của phiên vượt ngưỡng.",
+      "eventType": "Sự kiện hook của Claude Code cần khớp. Để trống để khớp mọi loại. Khớp chính xác (phân biệt hoa thường).",
+      "toolName": "Công cụ mà agent gọi (trong sự kiện PreToolUse / PostToolUse). Để trống để khớp mọi công cụ. Khớp chính xác.",
+      "summaryContains": "Khớp chuỗi con (không phân biệt hoa thường) trong tóm tắt sự kiện. Hữu ích để bắt lỗi hoặc cụm từ cụ thể. Để trống để bỏ qua.",
+      "count": "Cần bao nhiêu sự kiện khớp trước khi cảnh báo kích hoạt. 1 = kích hoạt ở lần khớp đầu. Đặt lớn hơn 1 để phát hiện bùng phát (vd lỗi lặp lại).",
+      "window": "Cửa sổ nhìn lại cho bộ đếm. vd count 5 + window 2 nghĩa là '5 sự kiện khớp trong bất kỳ khoảng 2 phút nào'.",
+      "status": "Trạng thái agent cần theo dõi. 'working' bắt agent kẹt giữa tác vụ; 'waiting' bắt agent chờ nhập liệu/quyền.",
+      "minutesInactivity": "Kích hoạt khi một phiên đang hoạt động không có sự kiện nào trong bấy nhiêu phút (phiên bị treo hoặc bị quên).",
+      "minutesStatus": "Kích hoạt khi agent ở trạng thái đã chọn mà không có hoạt động trong bấy nhiêu phút (agent bị kẹt).",
+      "totalTokens": "Kích hoạt khi tổng token của phiên (input + output + cache read + cache write) vượt số này. vd 1000000 = 1 triệu token.",
+      "cooldown": "Số giây tối thiểu giữa các cảnh báo lặp cho cùng quy tắc + phiên + agent. Tránh trùng lặp gây nhiễu. Mặc định 300 (5 phút); 0 = không có thời gian chờ."
+    }
   },
   "feed": {
     "title": "Luồng cảnh báo",

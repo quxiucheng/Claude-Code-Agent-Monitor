@@ -34,7 +34,7 @@ import { api } from "../lib/api";
 import { Select } from "./Select";
 import { ConfirmModal } from "./ConfirmModal";
 import { Checkbox } from "./Checkbox";
-import { WEBHOOK_GUIDES } from "./webhookGuides";
+import { WEBHOOK_DOCS } from "./webhookGuides";
 import { timeAgo } from "../lib/format";
 import type {
   AlertRule,
@@ -554,13 +554,15 @@ export function WebhookSettings() {
             {guideOpen && (
               <div className="px-3 pb-3 pt-2 space-y-2.5 border-t border-border">
                 <ol className="list-decimal list-inside space-y-1 text-[11px] leading-relaxed text-gray-400 marker:text-gray-600">
-                  {WEBHOOK_GUIDES[form.type].steps.map((s, i) => (
-                    <li key={i}>{s}</li>
-                  ))}
+                  {(t(`webhookGuides.${form.type}.steps`, { returnObjects: true }) as string[]).map(
+                    (s, i) => (
+                      <li key={i}>{s}</li>
+                    )
+                  )}
                 </ol>
-                {WEBHOOK_GUIDES[form.type].docsUrl && (
+                {WEBHOOK_DOCS[form.type] && (
                   <a
-                    href={WEBHOOK_GUIDES[form.type].docsUrl}
+                    href={WEBHOOK_DOCS[form.type]}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-[11px] text-accent hover:underline"

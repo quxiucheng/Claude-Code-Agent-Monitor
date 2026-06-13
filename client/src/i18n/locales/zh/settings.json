@@ -249,5 +249,119 @@
     "rulesHint": "触发告警的条件。在服务端针对实时事件流进行评估。",
     "rulesEmptyHint": "添加规则，开始对错误、闲置、卡住的代理或令牌阈值进行告警。"
   },
-  "jumpTo": "跳转到"
+  "jumpTo": "跳转到",
+  "webhookGuides": {
+    "slack": {
+      "steps": [
+        "在 api.slack.com/apps 创建或打开一个 Slack 应用。",
+        "开启“Incoming Webhooks”，然后点击“Add New Webhook to Workspace”。",
+        "选择要发布到的频道并授权。",
+        "复制生成的 URL（https://hooks.slack.com/services/…）并粘贴到上方。"
+      ]
+    },
+    "discord": {
+      "steps": [
+        "打开服务器 → 服务器设置 → 整合 → Webhook。",
+        "点击“新建 Webhook”，选择频道，可重命名。",
+        "点击“复制 Webhook URL”并粘贴到上方。"
+      ]
+    },
+    "teams": {
+      "steps": [
+        "在目标 Teams 频道，点击 ⋯ → “Workflows”。",
+        "选择模板“Post to a channel when a webhook request is received”。",
+        "完成流程并复制生成的 HTTP POST URL。",
+        "粘贴到上方。（传统 Office 365 连接器已于 2025 年停用 — 请使用 Workflows。）"
+      ]
+    },
+    "google_chat": {
+      "steps": [
+        "打开 Google Chat 空间 → 空间标题 → “应用和集成”。",
+        "点击“Webhook”→“添加 Webhook”并命名。",
+        "复制 Webhook URL 并粘贴到上方。"
+      ]
+    },
+    "mattermost": {
+      "steps": [
+        "主菜单 → 集成 → 传入 Webhook（管理员需先启用 Webhook）。",
+        "点击“添加传入 Webhook”并选择频道。",
+        "保存后复制 Webhook URL 并粘贴到上方。"
+      ]
+    },
+    "rocketchat": {
+      "steps": [
+        "管理 → 集成 → 新建 → 传入。",
+        "启用它，选择频道并保存。",
+        "复制“Webhook URL”并粘贴到上方。"
+      ]
+    },
+    "telegram": {
+      "steps": [
+        "给 @BotFather 发消息，运行 /newbot，复制 bot token。",
+        "将该 bot 加入你的群/频道（或直接私聊它）。",
+        "获取 chat ID：发送一条消息，打开 https://api.telegram.org/bot<token>/getUpdates，读取 result[].message.chat.id。",
+        "在上方填入 Bot token 和 Chat ID — 无需 URL。"
+      ]
+    },
+    "pagerduty": {
+      "steps": [
+        "打开目标服务 → 集成 → “Add integration”。",
+        "选择“Events API v2”。",
+        "复制 Integration Key（即 routing key）。",
+        "在上方填入 Routing key — Events API URL 已自动填好。"
+      ]
+    },
+    "opsgenie": {
+      "steps": [
+        "设置 → 集成 → 添加“API”集成。",
+        "复制生成的 API key。",
+        "记下你的账户区域（US 或 EU）。",
+        "在上方填入 API key 和区域 — 告警 URL 会根据区域自动推导。"
+      ]
+    },
+    "splunk_oncall": {
+      "steps": [
+        "集成 → REST Endpoint，并启用它。",
+        "复制 REST URL — 其中已包含你的 API key。",
+        "将末尾的“$routing_key”替换为你的某个 routing key。",
+        "将完整 URL 粘贴到上方。"
+      ]
+    },
+    "zapier": {
+      "steps": [
+        "创建一个 Zap，触发器选择“Webhooks by Zapier”→“Catch Hook”。",
+        "复制它提供的自定义 Webhook URL。",
+        "粘贴到上方。告警以 JSON 形式到达：{ event, alert }。"
+      ]
+    },
+    "make": {
+      "steps": [
+        "在场景的第一步添加“Webhooks”→“Custom webhook”模块。",
+        "点击“Add”，创建该 hook 并复制其 URL。",
+        "粘贴到上方，然后运行一次让 Make 学习负载结构。"
+      ]
+    },
+    "n8n": {
+      "steps": [
+        "在工作流中添加“Webhook”节点；将方法设为 POST。",
+        "复制 Production URL。",
+        "激活工作流并将 URL 粘贴到上方（自托管允许 http）。"
+      ]
+    },
+    "pipedream": {
+      "steps": [
+        "创建一个带“HTTP / Webhook”触发器的工作流。",
+        "复制唯一的端点 URL。",
+        "粘贴到上方；在 Pipedream 事件检查器中查看投递。"
+      ]
+    },
+    "generic": {
+      "steps": [
+        "指向任何接受 JSON POST 的端点（https，本地测试可用 http）。",
+        "负载结构：{ event: 'alert.triggered', source, sent_at, alert: { … } }。",
+        "可选：设置签名密钥（对负载做 HMAC-SHA256 → X-Webhook-Signature 头）和自定义请求头。",
+        "提示：用 webhook.site 等免费工具查看确切负载。"
+      ]
+    }
+  }
 }

@@ -168,5 +168,7 @@
       "filterTip3": "Tìm kiếm văn bản khớp summary, tool_name và dữ liệu thô.",
       "filterTip4": "Khoảng ngày áp dụng cho created_at của mỗi sự kiện."
     }
-  }
+  },
+  "examples": "Ví dụ",
+  "help": "Trợ giúp"
 }

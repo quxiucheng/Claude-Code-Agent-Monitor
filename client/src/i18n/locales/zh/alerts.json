@@ -50,7 +50,21 @@
       "totalTokens": "Token 总量",
       "cooldown": "冷却时间（秒）"
     },
-    "deleteTitle": "删除告警规则？"
+    "deleteTitle": "删除告警规则？",
+    "help": {
+      "name": "此规则的名称。显示在告警列表中，并包含在 Webhook 负载里（rule_name）。例如“Bash 反复报错”。",
+      "type": "此规则监控的内容。event_pattern 匹配实时事件流；inactivity = 活跃会话变得无活动；status_duration = 代理卡在某状态；token_threshold = 会话令牌用量超过阈值。",
+      "eventType": "要匹配的 Claude Code 钩子事件。留空则匹配任意事件类型。精确匹配（区分大小写）。",
+      "toolName": "代理调用的工具（在 PreToolUse / PostToolUse 事件上）。留空则匹配任意工具。精确匹配。",
+      "summaryContains": "对事件摘要文本进行不区分大小写的子串匹配。适合捕获错误或特定短语。留空则跳过。",
+      "count": "触发告警前需要发生多少次匹配事件。1 = 首次匹配即触发。大于 1 可检测突发（如反复报错）。",
+      "window": "计数的滑动回看窗口。例如 count 5 + window 2 表示“任意 2 分钟内出现 5 次匹配事件”。",
+      "status": "要监控的代理状态。“working”捕获卡在任务中的代理；“waiting”捕获等待输入/权限的代理。",
+      "minutesInactivity": "当活跃会话在这么多分钟内没有任何事件时触发（停滞或被遗忘的会话）。",
+      "minutesStatus": "当代理在所选状态下这么多分钟没有活动时触发（卡住的代理）。",
+      "totalTokens": "当会话累计令牌（输入+输出+缓存读+缓存写）超过此数值时触发。例如 1000000 = 100 万令牌。",
+      "cooldown": "同一规则+会话+代理重复告警之间的最小秒数。防止重复刷屏。默认 300（5 分钟）；0 = 无冷却。"
+    }
   },
   "feed": {
     "title": "警报信息流",

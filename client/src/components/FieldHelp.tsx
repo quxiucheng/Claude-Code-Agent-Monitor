@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslation } from "react-i18next";
 import { HelpCircle } from "lucide-react";
 
 export function FieldHelp({
@@ -22,6 +23,7 @@ export function FieldHelp({
   examples?: string[];
   note?: string;
 }) {
+  const { t } = useTranslation("common");
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
@@ -63,7 +65,7 @@ export function FieldHelp({
       <button
         ref={btnRef}
         type="button"
-        aria-label={title || "Help"}
+        aria-label={title || t("help")}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
         onFocus={() => setOpen(true)}
@@ -94,7 +96,9 @@ export function FieldHelp({
             <p className="text-[11px] leading-relaxed text-gray-400">{description}</p>
             {examples && examples.length > 0 && (
               <div className="mt-2">
-                <p className="text-[10px] uppercase tracking-wider text-gray-600 mb-1">Examples</p>
+                <p className="text-[10px] uppercase tracking-wider text-gray-600 mb-1">
+                  {t("examples")}
+                </p>
                 <div className="flex flex-wrap gap-1">
                   {examples.map((ex) => (
                     <code

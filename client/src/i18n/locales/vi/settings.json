@@ -249,5 +249,119 @@
     "rulesHint": "Điều kiện kích hoạt cảnh báo. Được đánh giá ở phía máy chủ trên luồng sự kiện trực tiếp.",
     "rulesEmptyHint": "Thêm quy tắc để bắt đầu cảnh báo về lỗi, không hoạt động, agent bị treo hoặc ngưỡng token."
   },
-  "jumpTo": "Chuyển tới"
+  "jumpTo": "Chuyển tới",
+  "webhookGuides": {
+    "slack": {
+      "steps": [
+        "Tạo hoặc mở một Slack app tại api.slack.com/apps.",
+        "Bật 'Incoming Webhooks', rồi nhấn 'Add New Webhook to Workspace'.",
+        "Chọn kênh để đăng và cấp quyền.",
+        "Sao chép URL được tạo (https://hooks.slack.com/services/…) và dán vào ô trên."
+      ]
+    },
+    "discord": {
+      "steps": [
+        "Mở server → Cài đặt máy chủ → Tích hợp → Webhook.",
+        "Nhấn 'New Webhook', chọn kênh, đổi tên nếu muốn.",
+        "Nhấn 'Copy Webhook URL' và dán vào ô trên."
+      ]
+    },
+    "teams": {
+      "steps": [
+        "Trong kênh Teams mục tiêu, nhấn ⋯ → 'Workflows'.",
+        "Chọn mẫu 'Post to a channel when a webhook request is received'.",
+        "Hoàn tất luồng và sao chép URL HTTP POST được tạo.",
+        "Dán vào ô trên. (Office 365 connector cũ đã ngừng năm 2025 — dùng Workflows.)"
+      ]
+    },
+    "google_chat": {
+      "steps": [
+        "Mở không gian Google Chat → tên không gian → 'Ứng dụng & tích hợp'.",
+        "Nhấn 'Webhooks' → 'Add webhook' và đặt tên.",
+        "Sao chép URL webhook và dán vào ô trên."
+      ]
+    },
+    "mattermost": {
+      "steps": [
+        "Menu chính → Tích hợp → Incoming Webhooks (quản trị viên phải bật webhook trước).",
+        "Nhấn 'Add Incoming Webhook' và chọn kênh.",
+        "Lưu, rồi sao chép URL webhook và dán vào ô trên."
+      ]
+    },
+    "rocketchat": {
+      "steps": [
+        "Quản trị → Tích hợp → New → Incoming.",
+        "Bật nó, chọn kênh và lưu.",
+        "Sao chép 'Webhook URL' và dán vào ô trên."
+      ]
+    },
+    "telegram": {
+      "steps": [
+        "Nhắn @BotFather, chạy /newbot và sao chép bot token.",
+        "Thêm bot vào nhóm/kênh của bạn (hoặc nhắn riêng cho nó).",
+        "Tìm chat ID: gửi một tin nhắn, mở https://api.telegram.org/bot<token>/getUpdates, đọc result[].message.chat.id.",
+        "Nhập Bot token và Chat ID ở trên — không cần URL."
+      ]
+    },
+    "pagerduty": {
+      "steps": [
+        "Mở Service mục tiêu → Integrations → 'Add integration'.",
+        "Chọn 'Events API v2'.",
+        "Sao chép Integration Key (routing key).",
+        "Nhập làm Routing key ở trên — URL Events API đã được điền sẵn."
+      ]
+    },
+    "opsgenie": {
+      "steps": [
+        "Settings → Integrations → thêm tích hợp 'API'.",
+        "Sao chép API key được tạo.",
+        "Ghi nhớ vùng tài khoản (US hoặc EU).",
+        "Nhập API key và vùng ở trên — URL cảnh báo được suy ra từ vùng."
+      ]
+    },
+    "splunk_oncall": {
+      "steps": [
+        "Integrations → REST Endpoint, và bật nó.",
+        "Sao chép REST URL — nó đã chứa API key của bạn.",
+        "Thay '$routing_key' ở cuối bằng một routing key của bạn.",
+        "Dán URL đầy đủ vào ô trên."
+      ]
+    },
+    "zapier": {
+      "steps": [
+        "Tạo một Zap với trigger 'Webhooks by Zapier' → 'Catch Hook'.",
+        "Sao chép URL webhook tùy chỉnh mà nó cấp.",
+        "Dán vào ô trên. Cảnh báo đến dạng JSON: { event, alert }."
+      ]
+    },
+    "make": {
+      "steps": [
+        "Thêm module 'Webhooks' → 'Custom webhook' làm bước đầu của scenario.",
+        "Nhấn 'Add', tạo hook và sao chép URL.",
+        "Dán vào ô trên, rồi chạy một lần để Make học cấu trúc payload."
+      ]
+    },
+    "n8n": {
+      "steps": [
+        "Thêm node 'Webhook' vào workflow; đặt method là POST.",
+        "Sao chép Production URL.",
+        "Kích hoạt workflow và dán URL vào ô trên (http được phép cho bản tự host)."
+      ]
+    },
+    "pipedream": {
+      "steps": [
+        "Tạo workflow với trigger 'HTTP / Webhook'.",
+        "Sao chép URL endpoint duy nhất.",
+        "Dán vào ô trên; xem các lần gửi trong trình kiểm tra sự kiện của Pipedream."
+      ]
+    },
+    "generic": {
+      "steps": [
+        "Trỏ tới bất kỳ endpoint nào nhận JSON POST (https, hoặc http để thử cục bộ).",
+        "Cấu trúc body: { event: 'alert.triggered', source, sent_at, alert: { … } }.",
+        "Tùy chọn: đặt khóa ký (HMAC-SHA256 trên body → header X-Webhook-Signature) và header tùy chỉnh.",
+        "Mẹo: dùng công cụ miễn phí như webhook.site để xem payload chính xác."
+      ]
+    }
+  }
 }

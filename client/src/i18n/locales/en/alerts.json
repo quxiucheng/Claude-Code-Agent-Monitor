@@ -50,7 +50,21 @@
       "totalTokens": "Total tokens",
       "cooldown": "Cooldown (seconds)"
     },
-    "deleteTitle": "Delete alert rule?"
+    "deleteTitle": "Delete alert rule?",
+    "help": {
+      "name": "A label for this rule. Shows in the alert feed and is included in webhook payloads (rule_name). e.g. 'Repeated Bash errors'.",
+      "type": "What this rule watches. event_pattern matches the live event stream; inactivity = an active session goes quiet; status_duration = an agent is stuck in a state; token_threshold = a session's token usage crosses a limit.",
+      "eventType": "The Claude Code hook event to match. Leave blank to match any event type. Matched exactly (case-sensitive).",
+      "toolName": "The tool the agent invoked (on PreToolUse / PostToolUse events). Leave blank to match any tool. Matched exactly.",
+      "summaryContains": "Case-insensitive substring match against the event's summary text. Useful for catching errors or specific phrases. Leave blank to skip.",
+      "count": "How many matching events must occur before the alert fires. 1 = fire on the first match. Set above 1 to detect bursts (e.g. repeated errors).",
+      "window": "The rolling look-back window for the count. e.g. count 5 + window 2 means '5 matching events within any 2-minute span'.",
+      "status": "Which agent state to watch. 'working' catches agents stuck mid-task; 'waiting' catches agents blocked on input/permission.",
+      "minutesInactivity": "Fire when an active session has had no events for this many minutes (a stalled or forgotten session).",
+      "minutesStatus": "Fire when an agent stays in the selected status with no activity for this many minutes (a stuck agent).",
+      "totalTokens": "Fire when a session's cumulative tokens (input + output + cache read + cache write) cross this number. e.g. 1000000 = 1M tokens.",
+      "cooldown": "Minimum seconds between repeat alerts for the same rule + session + agent. Prevents noisy duplicates. Default 300 (5 min); 0 = no cooldown."
+    }
   },
   "feed": {
     "title": "Alert feed",
