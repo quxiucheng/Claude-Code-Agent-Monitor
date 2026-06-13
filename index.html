@@ -2646,14 +2646,23 @@
           </div>
           <div class="feature-card">
             <div class="feature-icon amber">🔔</div>
-            <h3>Alerts &amp; webhooks</h3>
+            <h3>Rules-based alerts</h3>
             <p>
-              Rules-based alerting on the live event stream - error bursts, stuck agents, idle
-              sessions, token thresholds - with per-scope cooldown dedup. Fired alerts fan out to
-              <strong>14 first-class webhook providers</strong> (Slack, Discord, Teams, Google Chat,
-              Mattermost, Rocket.Chat, Telegram, PagerDuty, Opsgenie, Splunk On-Call, Zapier, Make,
-              n8n, Pipedream) plus any generic endpoint - per-platform payloads, optional HMAC
-              signing, a one-click test probe, and a recorded delivery log.
+              Server-side alerting on the live event stream - error bursts, stuck agents, idle
+              sessions, and token thresholds - with per-(rule, session, agent) cooldown dedup. Fired
+              alerts surface in a live feed with acknowledge / acknowledge-all and link back to the
+              session that triggered them.
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon violet">🔗</div>
+            <h3>Universal webhooks</h3>
+            <p>
+              Fan fired alerts out to <strong>14 first-class providers</strong> - Slack, Discord,
+              Teams, Google Chat, Mattermost, Rocket.Chat, Telegram, PagerDuty, Opsgenie, Splunk
+              On-Call, Zapier, Make, n8n, Pipedream - plus any generic endpoint. Per-platform
+              payloads, optional HMAC-SHA256 signing, a one-click test probe, and a recorded
+              delivery log.
             </p>
           </div>
           <div class="feature-card">
