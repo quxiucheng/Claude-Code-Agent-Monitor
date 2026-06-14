@@ -25,6 +25,7 @@ const {
   workflowsMaxMtime,
   extractRunId,
   nameFromScript,
+  mapState,
 } = require("../lib/workflow-ingest");
 
 const SESSION_ID = "sess-wf-1";
@@ -204,6 +205,21 @@ describe("extractRunId / nameFromScript", () => {
   });
 });
 
+describe("mapState", () => {
+  it("maps journal states to agent statuses", () => {
+    assert.equal(mapState("done"), "completed");
+    assert.equal(mapState("completed"), "completed");
+    assert.equal(mapState("success"), "completed");
+    assert.equal(mapState("error"), "error");
+    assert.equal(mapState("failed"), "error");
+    assert.equal(mapState("running"), "working");
+    assert.equal(mapState("queued"), "working");
+    assert.equal(mapState("in_progress"), "working");
+    assert.equal(mapState("anything-unknown"), "completed");
+    assert.equal(mapState(null), "completed");
+  });
+});
+
 describe("ingestWorkflowsForSession — completed journal", () => {
   it("ingests the journal as a workflow row with parsed phases/progress", async () => {
     const changed = await ingestWorkflowsForSession(dbModule, {
@@ -339,6 +355,8 @@ describe("live running workflow (no terminal journal)", () => {
       [
         JSON.stringify({ type: "started", agentId: "a1" }),
         JSON.stringify({ type: "started", agentId: "a2" }),
+        // a3 started but has no transcript yet (queued) → minimal live entry
+        JSON.stringify({ type: "started", agentId: "a3" }),
         JSON.stringify({ type: "result", agentId: "a1", result: { ok: true, note: "done" } }),
       ].join("\n")
     );
@@ -353,16 +371,19 @@ describe("live running workflow (no terminal journal)", () => {
     assert.equal(wf.status, "running", "shown as running before terminal journal");
     assert.equal(wf.source, "live");
     assert.equal(wf.name, "ds-pipeline");
-    assert.equal(wf.agent_count, 2);
+    assert.equal(wf.agent_count, 3, "two transcripts + one queued agent");
     assert.ok(wf.total_tokens > 0, "live tokens accumulated");
     assert.ok(wf.total_tool_calls >= 2, "live tool calls counted");
 
     const prog = JSON.parse(wf.progress);
-    assert.equal(prog.length, 2);
+    assert.equal(prog.length, 3);
     const a1 = prog.find((p) => p.agentId === "a1");
     const a2 = prog.find((p) => p.agentId === "a2");
+    const a3 = prog.find((p) => p.agentId === "a3");
     assert.equal(a1.state, "done", "a1 has a result → done");
     assert.equal(a2.state, "running", "a2 only started → running");
+    assert.equal(a3.state, "running", "a3 queued (started, no transcript) → running");
+    assert.equal(a3.tokens, 0, "queued agent has no tokens yet");
     assert.ok(a1.tokens > 0 && a1.toolCalls >= 1);
     assert.ok(a1.resultPreview, "finished agent carries its result");
 

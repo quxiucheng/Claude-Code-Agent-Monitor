@@ -152,6 +152,19 @@ describe("GET /api/workflows/runs", () => {
     assert.equal(run.progress.filter((p) => p.type === "workflow_agent").length, 1);
     assert.equal(typeof r.body.total, "number");
     assert.ok(r.body.counts && typeof r.body.counts === "object");
+    assert.ok(r.body.counts.completed >= 1, "status counts include completed");
+  });
+
+  it("filters by status", async () => {
+    const completed = await fetchJson("/api/workflows/runs?status=completed");
+    assert.equal(completed.status, 200);
+    assert.ok(completed.body.runs.some((x) => x.run_id === "wf_apitest1"));
+    const running = await fetchJson("/api/workflows/runs?status=running");
+    assert.equal(running.status, 200);
+    assert.ok(
+      !running.body.runs.some((x) => x.run_id === "wf_apitest1"),
+      "completed run excluded from the running filter"
+    );
   });
 });
 
