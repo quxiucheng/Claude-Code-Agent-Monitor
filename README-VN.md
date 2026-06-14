@@ -218,6 +218,18 @@ flowchart LR
 </p>
 
 <p align="center">
+  <img src="images/dynamicworkflows-workflows.png" alt="Lần chạy quy trình động trên trang Quy trình" width="100%">
+  <br>
+  <em>🧬 <strong>Lần chạy quy trình (trang Quy trình)</strong> — các "quy trình động" do công cụ <code>Workflow</code> tạo ra, được dựng lại từ nhật ký chạy trên đĩa: trạng thái, số agent, token và lệnh gọi công cụ, mở rộng thành bảng phân tích theo từng agent (giai đoạn, trạng thái, token, công cụ, thời lượng) kèm bản xem trước kết quả đã được làm gọn</em>
+</p>
+
+<p align="center">
+  <img src="images/dynamicworkflows-session.png" alt="Lần chạy quy trình động trên trang chi tiết phiên" width="100%">
+  <br>
+  <em>🧬 <strong>Lần chạy quy trình (chi tiết phiên)</strong> — cùng các nhóm đó được liên kết tới phiên khởi chạy, nên các sub-agent của quy trình động và chi phí token đã được gộp vào đều hiển thị ngay trong phiên</em>
+</p>
+
+<p align="center">
   <img src="images/config.png" alt="Trình khám phá cấu hình Claude" width="100%">
   <br>
   <em>🧰 <strong>Trình khám phá cấu hình Claude</strong> — Trình kiểm tra 12-tab cho mọi thứ Claude Code biết: skills, subagents, lệnh slash, output styles, plugin (kèm số đóng góp của từng plugin), marketplaces, máy chủ MCP, hooks, settings (ẩn key bí mật), memory, keybindings và statusline. Hỗ trợ tạo / sửa / xoá trên các bề mặt tệp văn bản rủi ro thấp với sao lưu dấu thời gian bắt buộc</em>

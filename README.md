@@ -217,6 +217,18 @@ Comes with a sleek dark theme, responsive design, and intuitive navigation to ex
 </p>
 
 <p align="center">
+  <img src="images/dynamicworkflows-workflows.png" alt="Dynamic Workflow Runs on the Workflows page" width="100%">
+  <br>
+  <em>🧬 <strong>Workflow Runs (Workflows page)</strong> — "dynamic workflows" spawned by the <code>Workflow</code> tool, reconstructed from on-disk run journals: status, agent count, tokens, and tool calls, expandable into a per-agent breakdown (phase, state, tokens, tools, duration) with humanized result previews</em>
+</p>
+
+<p align="center">
+  <img src="images/dynamicworkflows-session.png" alt="Dynamic Workflow Runs on the session detail page" width="100%">
+  <br>
+  <em>🧬 <strong>Workflow Runs (Session detail)</strong> — the same fleets linked to their launching session, so a session's dynamic-workflow sub-agents and their folded-in token cost are visible inline</em>
+</p>
+
+<p align="center">
   <img src="images/config.png" alt="Claude Config Explorer" width="100%">
   <br>
   <em>🧰 <strong>Claude Config Explorer</strong> — 12-tab inspector for everything Claude Code knows about: skills, subagents, slash commands, output styles, plugins (with per-plugin contributions), marketplaces, MCP servers, hooks, settings (with secret-key redaction), memory, keybindings, and statusline. Create / edit / delete on low-risk text-file surfaces with mandatory timestamped backups</em>

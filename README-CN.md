@@ -220,6 +220,18 @@ flowchart LR
 </p>
 
 <p align="center">
+  <img src="images/dynamicworkflows-workflows.png" alt="工作流页面上的动态工作流运行" width="100%">
+  <br>
+  <em>🧬 <strong>工作流运行（工作流页面）</strong> — 由 <code>Workflow</code> 工具派生的「动态工作流」，依据磁盘上的运行日志重建：状态、Agent 数量、token 与工具调用，可展开为按 Agent 的明细（阶段、状态、token、工具、时长），并附经过人性化处理的结果预览</em>
+</p>
+
+<p align="center">
+  <img src="images/dynamicworkflows-session.png" alt="会话详情页面上的动态工作流运行" width="100%">
+  <br>
+  <em>🧬 <strong>工作流运行（会话详情）</strong> — 同样的群组关联到其启动会话，因此会话的动态工作流子 Agent 及其已计入的 token 成本可在会话内直接查看</em>
+</p>
+
+<p align="center">
   <img src="images/config.png" alt="Claude 配置浏览器" width="100%">
   <br>
   <em>🧰 <strong>Claude 配置浏览器</strong> — 12 标签页检查器，涵盖 Claude Code 知道的一切：技能、子代理、斜杠命令、输出样式、插件（含每个插件的贡献计数）、市场、MCP 服务器、Hook、设置（密钥脱敏）、记忆、快捷键与状态行。低风险文本文件表面支持创建/编辑/删除，带强制时间戳备份</em>
