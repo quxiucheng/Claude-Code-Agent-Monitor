@@ -2083,7 +2083,7 @@ agent-dashboard/
 
 Contributions are welcome — see [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) for the full guide.
 
-All contributors must sign the [Contributor License Agreement](CLA.md). This is enforced automatically on every pull request by the `🖋️ CLA Assistant` GitHub Action: the first time you open a PR, a bot asks you to sign by commenting `I have read the CLA Document and I hereby sign the CLA`. The PR's **CLA Assistant** status check stays red until you do, and signing once covers all future contributions.
+All contributors must sign the [Contributor License Agreement](https://github.com/hoangsonww/Claude-Code-Agent-Monitor/blob/master/CLA.md). This is enforced automatically on every pull request by the `🖋️ CLA Assistant` GitHub Action: the first time you open a PR, a bot asks you to sign by commenting `I have read the CLA Document and I hereby sign the CLA`. The PR's **CLA Assistant** status check stays red until you do, and signing once covers all future contributions.
 
 ---
 
