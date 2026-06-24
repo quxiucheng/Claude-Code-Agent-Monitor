@@ -171,7 +171,7 @@ CREATE TABLE sessions (
 | Column | Type | Nullable | Description |
 |--------|------|----------|-------------|
 | `id` | TEXT | NO | Session UUID (assigned by Claude Code) |
-| `name` | TEXT | YES | Human-readable label (auto-generated or user-set) |
+| `name` | TEXT | YES | Human-readable label. Synced from the transcript title by `routes/hooks.js` (and the 15 s watchdog) on every event: the `custom-title` line (`/rename`, `claude -n`, picker `Ctrl+R`) always wins, otherwise the auto-generated `ai-title` fills a placeholder/auto name. Falls back to `Session <id8>` |
 | `status` | TEXT | NO | `active`, `completed`, `error`, or `abandoned` (CHECK-constrained) |
 | `cwd` | TEXT | YES | Working directory the CLI was launched from |
 | `model` | TEXT | YES | Claude model ID (e.g. `claude-opus-4-7`) |
@@ -240,7 +240,7 @@ CREATE TABLE agents (
 |--------|------|----------|-------------|
 | `id` | TEXT | NO | UUID (subagents) or `${session_id}-main` (main agent) |
 | `session_id` | TEXT | NO | FK to `sessions.id`, cascades on delete |
-| `name` | TEXT | NO | Display label (e.g. `Main Agent — {session name}` or subagent description) |
+| `name` | TEXT | NO | Display label (e.g. `Main Agent - {session name}` or subagent description) |
 | `type` | TEXT | NO | `main` or `subagent` |
 | `subagent_type` | TEXT | YES | `Explore`, `general-purpose`, `code-review`, `compaction`, … |
 | `status` | TEXT | NO | `idle`, `connected`, `working`, `completed`, `error` (CHECK-constrained). The dashboard's **Waiting** badge is the UI overlay produced by `awaiting_input_since`; it is not a persisted status |

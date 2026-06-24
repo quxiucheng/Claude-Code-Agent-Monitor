@@ -183,8 +183,8 @@ client/
 │   ├── pages/              # Route pages
 │   │   ├── Dashboard.tsx
 │   │   ├── KanbanBoard.tsx
-│   │   ├── Sessions.tsx
-│   │   ├── SessionDetail.tsx
+│   │   ├── Sessions.tsx       # Filterable table; shows each session's real name (synced live from the transcript), falls back to the short ID
+│   │   ├── SessionDetail.tsx  # Agent tree + event timeline + Conversation tab (slash-command pills & output, inline rename markers)
 │   │   ├── ActivityFeed.tsx  # Real-time event log; row click expands payload; Session btn navigates
 │   │   ├── Analytics.tsx
 │   │   ├── Workflows.tsx

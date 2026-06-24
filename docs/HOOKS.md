@@ -614,6 +614,14 @@ graph TB
     style Broadcast fill:#F59E0B
 ```
 
+### Transcript-derived sync
+
+On every event that carries a `transcript_path`, the shared `TranscriptCache` re-reads the JSONL (incrementally) and the ingestor keeps three session fields in sync with what the user is actually doing in the CLI:
+
+- **Tokens / cost** — usage is accumulated per model bucket (compaction-aware baselines).
+- **Model** — the most recent assistant entry's model keeps `sessions.model` current after a `/model` switch.
+- **Name** — the session title is read from the transcript: the `custom-title` line (`/rename`, `claude -n`, picker `Ctrl+R`) always wins, otherwise the auto-generated `ai-title` fills a placeholder/auto name (so a user-chosen name is never clobbered). `sessions.name` is updated via a no-op-guarded statement and a `session_updated` broadcast fires only on a real change, so the dashboard reflects renames in real time. The 15 s error-detection watchdog runs the same sync for active sessions left idle right after a `/rename`.
+
 ---
 
 ## Error Handling

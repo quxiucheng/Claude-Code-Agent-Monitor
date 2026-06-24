@@ -24,12 +24,18 @@ const {
 const router = Router();
 
 // JSONL entry types the transcript reader turns into renderable messages.
-// `user`/`assistant` are the conversation; `custom-title` is the metadata line
+// `user`/`assistant` are the conversation. `custom-title` is the metadata line
 // written by /rename, `claude -n`, and the picker's Ctrl+R — surfaced as an
-// inline rename marker so TUI-only commands aren't invisible on the dashboard.
+// inline rename marker so a rename is visible even when there is no command
+// line (e.g. `claude -n` at startup). `system` carries local slash-command I/O
+// in newer Claude Code builds — `system`/`local_command` lines hold the TUI
+// markup (`<command-name>`, `<local-command-stdout>`, …) in a top-level
+// `content` string, so /color, /rename, /clear, and custom commands render as
+// command pills + their captured output; every other `system` subtype
+// (turn_duration, stop_hook_summary, away_summary, …) is dropped as noise.
 // (ai-title is intentionally excluded: it repeats on nearly every turn and
 // would flood the stream; it drives the session NAME instead, not the chat.)
-const TRANSCRIPT_RENDER_TYPES = new Set(["user", "assistant", "custom-title"]);
+const TRANSCRIPT_RENDER_TYPES = new Set(["user", "assistant", "custom-title", "system"]);
 
 /**
  * Read only the first non-empty line from a JSONL file using streaming.
@@ -584,6 +590,26 @@ router.get("/:id/transcript", async (req, res) => {
           title,
           timestamp: entry.timestamp || null,
           content: [],
+          line: num,
+        };
+      }
+
+      // Local slash-command I/O. Newer Claude Code builds write the command
+      // invocation and its captured output as `system`/`local_command` lines
+      // with the TUI markup in a top-level `content` string (older builds used
+      // `user` messages, handled below). Surface those as user-side text so the
+      // client's tuiSegments parser renders the command pill + stdout/stderr
+      // (e.g. /color → "/color" pill + "Session color set to: cyan"). Skip
+      // every other system subtype (turn_duration, stop_hook_summary, …) and
+      // empty local_command lines (e.g. /clear writes a content-less one).
+      if (entry.type === "system") {
+        if (entry.subtype !== "local_command") return null;
+        const sysText = typeof entry.content === "string" ? entry.content : "";
+        if (!sysText.trim()) return null;
+        return {
+          type: "user",
+          timestamp: entry.timestamp || null,
+          content: [{ type: "text", text: truncate(sysText, 10240) }],
           line: num,
         };
       }

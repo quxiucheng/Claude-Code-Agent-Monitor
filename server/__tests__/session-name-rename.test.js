@@ -223,3 +223,55 @@ describe("GET /:id/transcript — rename markers", () => {
     );
   });
 });
+
+describe("GET /:id/transcript — local slash-command output (system/local_command)", () => {
+  it("surfaces /color command + its stdout, skips empty + noise system lines", async () => {
+    const cwd = "/tmp/cam-local-cmd";
+    const sid = "c010rrrr-1111-2222-3333-444444444444";
+    writeTranscript(cwd, sid, [
+      { type: "user", message: { role: "user", content: "hi" } },
+      // /color, current Claude Code shape: command + output as system/local_command
+      {
+        type: "system",
+        subtype: "local_command",
+        content:
+          "<command-name>/color</command-name>\n            <command-message>color</command-message>\n            <command-args></command-args>",
+        sessionId: sid,
+      },
+      { type: "agent-color", agentColor: "cyan", sessionId: sid },
+      {
+        type: "system",
+        subtype: "local_command",
+        content: "<local-command-stdout>Session color set to: cyan</local-command-stdout>",
+        sessionId: sid,
+      },
+      // /clear writes a content-less local_command line — must NOT become a row
+      { type: "system", subtype: "local_command", content: "", sessionId: sid },
+      // unrelated system subtype — pure noise, must be dropped
+      { type: "system", subtype: "turn_duration", durationMs: 1200, sessionId: sid },
+    ]);
+    await req("POST", "/api/sessions", { id: sid, cwd });
+
+    const res = await req("GET", `/api/sessions/${sid}/transcript?limit=200`);
+    assert.equal(res.status, 200);
+    const texts = res.body.messages.flatMap((m) =>
+      m.content.filter((c) => c.type === "text").map((c) => c.text)
+    );
+    assert.ok(
+      texts.some((tx) => tx.includes("<command-name>/color</command-name>")),
+      "the /color command invocation is surfaced"
+    );
+    assert.ok(
+      texts.some((tx) => tx.includes("Session color set to: cyan")),
+      "the /color stdout is surfaced"
+    );
+    // Empty local_command (/clear) and turn_duration noise produce no message.
+    assert.ok(
+      !texts.some((tx) => /turn_duration|durationMs/.test(tx)),
+      "non-local_command system subtypes are not surfaced"
+    );
+    // Exactly two surfaced rows from the system lines (command + stdout), plus
+    // the one real user message — the empty + noise lines add nothing.
+    assert.equal(res.body.messages.length, 3);
+  });
+});

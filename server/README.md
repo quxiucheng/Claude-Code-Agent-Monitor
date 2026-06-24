@@ -417,6 +417,8 @@ The OpenAPI spec is generated from `server/openapi.js` and is the source of trut
 | `GET`   | `/api/sessions/:id` | Session detail (includes `agents` + `events`)   |
 | `POST`  | `/api/sessions`     | Create session (idempotent by `id`)             |
 | `PATCH` | `/api/sessions/:id` | Update session                                   |
+| `GET`   | `/api/sessions/:id/transcripts` | List the session's transcript files (main + sub-agents) |
+| `GET`   | `/api/sessions/:id/transcript`  | Cursor-paginated message stream for one transcript |
 | `GET`   | `/api/agents`       | List agents (`status`, `session_id`, pagination)|
 | `GET`   | `/api/agents/:id`   | Agent detail                                     |
 | `POST`  | `/api/agents`       | Create agent (idempotent by `id`)               |
@@ -424,6 +426,10 @@ The OpenAPI spec is generated from `server/openapi.js` and is the source of trut
 | `GET`   | `/api/events`       | List events (`session_id`, `limit`, `offset`)   |
 | `GET`   | `/api/stats`        | Dashboard aggregate counters                     |
 | `GET`   | `/api/analytics`    | Analytics aggregates for charts/trends           |
+
+**Session names** are kept in sync with the transcript title: on every hook event (and in the 15 s watchdog) the ingestor reads the latest `custom-title` (`/rename`, `claude -n`, picker `Ctrl+R`) or `ai-title` (auto) from the JSONL and updates `sessions.name` — `custom-title` always wins, `ai-title` only fills a placeholder/auto name — broadcasting `session_updated` so the UI reflects renames in real time.
+
+**Transcript stream** (`GET /api/sessions/:id/transcript`) returns `user` / `assistant` messages plus: synthetic `session_event` rename markers (from `custom-title`), and local slash-command I/O surfaced from `system`/`local_command` lines (the `<command-name>` pill + `<local-command-stdout>`/`stderr` output, e.g. `/color`, `/rename`, custom commands). Content-less `local_command` lines and other `system` subtypes are dropped.
 
 ### Hook Ingestion
 

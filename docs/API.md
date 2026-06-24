@@ -302,7 +302,7 @@ curl http://localhost:4820/api/sessions/sess_abc123/agents
     {
       "id": "sess_abc123-main",
       "session_id": "sess_abc123",
-      "name": "Main Agent — my-project",
+      "name": "Main Agent - my-project",
       "type": "main",
       "subagent_type": null,
       "status": "idle",

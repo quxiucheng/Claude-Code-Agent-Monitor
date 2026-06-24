@@ -925,8 +925,10 @@
                     sessions exist. Case-insensitive search across <code>id</code>,
                     <code>name</code>, and <code>cwd</code> runs server-side with a 300 ms
                     debounce; the status filter composes with search for precise narrowing.
-                    Each row shows status badge, agent count, duration, model, and estimated cost.
-                    Click any row to drill into the full session detail view with conversation
+                    Each row shows the session's real name (synced live from the transcript — a
+                    <code>/rename</code> or <code>claude -n</code> title, else the auto title, with
+                    a short-ID fallback), status badge, agent count, duration, model, and estimated
+                    cost. Click any row to drill into the full session detail view with conversation
                     transcript and agent hierarchy.
                   </p>
                 </div>
@@ -939,8 +941,10 @@
                     overview panel at the top surfaces tile counters for events, tool calls,
                     subagents, compactions, errors, and duration. Top-tool usage bars and a
                     subagent type breakdown give quick distribution reads. The conversation
-                    viewer renders markdown with syntax highlighting and per-tool styled blocks.
-                    Export the entire session as JSON or share the permalink for async review.
+                    viewer renders markdown with syntax highlighting, per-tool styled blocks,
+                    slash-command pills with their captured TUI output, and inline session-rename
+                    markers. Export the entire session as JSON or share the permalink for async
+                    review.
                   </p>
                 </div>
                 <div class="feature-card">
@@ -1052,7 +1056,9 @@
                     Incremental JSONL reader shared across the hook handler, compaction scanner,
                     conversation viewer, and import pipeline. Byte-offset tracking skips
                     already-parsed content; cache hits short-circuit disk I/O so even sessions
-                    with tens of thousands of turns stay fast.
+                    with tens of thousands of turns stay fast. It also extracts the live session
+                    title (<code>custom-title</code> / <code>ai-title</code>) so renames surface in
+                    real time.
                   </p>
                 </div>
                 <div class="feature-card">
@@ -1253,7 +1259,10 @@
                     A 12-tab inspector at <code>/cc-config</code> for everything Claude Code
                     knows about: skills, subagents, slash commands, output styles, plugins,
                     marketplaces, MCP servers, hooks, settings, memory, keybindings, and
-                    statusline scripts. Create, edit, and delete the low-risk text-file surfaces
+                    statusline scripts. The Settings tab leads with a Current configuration summary
+                    of the options <code>/config</code> controls — model, verbose, theme, output
+                    style, auto-compact, notifications — resolved across scopes. Create, edit, and
+                    delete the low-risk text-file surfaces
                     with mandatory timestamped backups before every write. Plugins, MCP, hooks,
                     and live settings stay read-only with explainer banners and copy-able CLI
                     commands. Per-plugin contribution breakdowns show author and license.
@@ -5933,7 +5942,7 @@ npm run install-hooks</code></pre>
     <!-- Body-content translations (zh/vi) — must load before script.js so the
          i18n engine sees window.__WIKI_CONTENT_I18N. Both are deferred, so they
          run in document order. -->
-    <script src="i18n-content.js?v=7" defer></script>
+    <script src="i18n-content.js?v=8" defer></script>
     <script src="script.js?v=26" defer></script>
     <script>
       (function () {

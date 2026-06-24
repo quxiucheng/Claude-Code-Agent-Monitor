@@ -2631,8 +2631,11 @@
             <h3>Claude Config Explorer</h3>
             <p>
               12 tabs covering skills, subagents, slash commands, output styles, plugins,
-              marketplaces, MCP servers, hooks, settings, memory, keybindings, statusline. Edit
-              text-file artifacts with timestamped backups.
+              marketplaces, MCP servers, hooks, settings, memory, keybindings, statusline. The
+              Settings tab leads with a Current configuration summary of the options
+              <code>/config</code> controls (model, verbose, theme, output style, auto-compact,
+              notifications) resolved across scopes. Edit text-file artifacts with timestamped
+              backups.
             </p>
           </div>
           <div class="feature-card">
@@ -2797,8 +2800,9 @@
             <h3>Conversation replay</h3>
             <p>
               Full transcript replay for any session - user prompts, assistant turns, tool calls,
-              and thinking blocks rendered inline with syntax highlighting. Step through the
-              session timeline and expand any event to inspect its raw hook payload.
+              and thinking blocks rendered inline with syntax highlighting, plus slash-command
+              pills with their captured TUI output and inline session-rename markers. Step through
+              the session timeline and expand any event to inspect its raw hook payload.
             </p>
           </div>
           <div class="feature-card">
@@ -2883,7 +2887,7 @@
               <span class="showcase-expand-icon">⤢</span>
               <div class="showcase-overlay">
                 <h4>Sessions</h4>
-                <p>Searchable, filterable, server-paginated table of recorded sessions</p>
+                <p>Searchable, filterable, server-paginated table of recorded sessions, each shown by its real name synced live from the transcript</p>
               </div>
             </div>
           </div>
@@ -2903,7 +2907,7 @@
               <span class="showcase-expand-icon">⤢</span>
               <div class="showcase-overlay">
                 <h4>Session · Conversation</h4>
-                <p>Live transcript with markdown, syntax-highlighted code, and styled tool calls</p>
+                <p>Live transcript with markdown, syntax-highlighted code, styled tool calls, slash-command output, and rename markers</p>
               </div>
             </div>
           </div>
