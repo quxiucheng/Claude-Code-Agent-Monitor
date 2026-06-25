@@ -10707,13 +10707,13 @@ exports[`screen snapshots > Workflows 1`] = `
     </div>
     <div>
       <div
-        class="flex items-center justify-between mb-3"
+        class="flex items-center justify-between gap-4 mb-3"
       >
         <div
-          class="flex items-center gap-2.5"
+          class="flex items-center gap-2.5 min-w-0"
         >
           <span
-            class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center"
+            class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center flex-shrink-0"
           >
             1
           </span>
@@ -10755,7 +10755,8 @@ exports[`screen snapshots > Workflows 1`] = `
           </button>
         </div>
         <span
-          class="text-[11px] text-gray-600 hidden lg:block"
+          class="hidden lg:block flex-shrink-0 max-w-[20rem] xl:max-w-sm truncate text-right text-[11px] text-gray-600"
+          title="Aggregate spawning patterns across all sessions - Click a node to filter"
         >
           Aggregate spawning patterns across all sessions - Click a node to filter
         </span>
@@ -10820,13 +10821,13 @@ exports[`screen snapshots > Workflows 1`] = `
     </div>
     <div>
       <div
-        class="flex items-center justify-between mb-3"
+        class="flex items-center justify-between gap-4 mb-3"
       >
         <div
-          class="flex items-center gap-2.5"
+          class="flex items-center gap-2.5 min-w-0"
         >
           <span
-            class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center"
+            class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center flex-shrink-0"
           >
             2
           </span>
@@ -10868,7 +10869,8 @@ exports[`screen snapshots > Workflows 1`] = `
           </button>
         </div>
         <span
-          class="text-[11px] text-gray-600 hidden lg:block"
+          class="hidden lg:block flex-shrink-0 max-w-[20rem] xl:max-w-sm truncate text-right text-[11px] text-gray-600"
+          title="How tools chain together - Sankey-style directed flow"
         >
           How tools chain together - Sankey-style directed flow
         </span>
@@ -11008,13 +11010,13 @@ exports[`screen snapshots > Workflows 1`] = `
     </div>
     <div>
       <div
-        class="flex items-center justify-between mb-3"
+        class="flex items-center justify-between gap-4 mb-3"
       >
         <div
-          class="flex items-center gap-2.5"
+          class="flex items-center gap-2.5 min-w-0"
         >
           <span
-            class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center"
+            class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center flex-shrink-0"
           >
             3
           </span>
@@ -11056,7 +11058,8 @@ exports[`screen snapshots > Workflows 1`] = `
           </button>
         </div>
         <span
-          class="text-[11px] text-gray-600 hidden lg:block"
+          class="hidden lg:block flex-shrink-0 max-w-[20rem] xl:max-w-sm truncate text-right text-[11px] text-gray-600"
+          title="Directed workflow - which agent types run after which, with frequency labels"
         >
           Directed workflow - which agent types run after which, with frequency labels
         </span>
@@ -11085,13 +11088,13 @@ exports[`screen snapshots > Workflows 1`] = `
     >
       <div>
         <div
-          class="flex items-center justify-between mb-3"
+          class="flex items-center justify-between gap-4 mb-3"
         >
           <div
-            class="flex items-center gap-2.5"
+            class="flex items-center gap-2.5 min-w-0"
           >
             <span
-              class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center"
+              class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center flex-shrink-0"
             >
               4
             </span>
@@ -11133,7 +11136,8 @@ exports[`screen snapshots > Workflows 1`] = `
             </button>
           </div>
           <span
-            class="text-[11px] text-gray-600 hidden lg:block"
+            class="hidden lg:block flex-shrink-0 max-w-[20rem] xl:max-w-sm truncate text-right text-[11px] text-gray-600"
+            title="Performance metrics per agent type"
           >
             Performance metrics per agent type
           </span>
@@ -11150,13 +11154,13 @@ exports[`screen snapshots > Workflows 1`] = `
       </div>
       <div>
         <div
-          class="flex items-center justify-between mb-3"
+          class="flex items-center justify-between gap-4 mb-3"
         >
           <div
-            class="flex items-center gap-2.5"
+            class="flex items-center gap-2.5 min-w-0"
           >
             <span
-              class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center"
+              class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center flex-shrink-0"
             >
               5
             </span>
@@ -11198,7 +11202,8 @@ exports[`screen snapshots > Workflows 1`] = `
             </button>
           </div>
           <span
-            class="text-[11px] text-gray-600 hidden lg:block"
+            class="hidden lg:block flex-shrink-0 max-w-[20rem] xl:max-w-sm truncate text-right text-[11px] text-gray-600"
+            title="Common agent orchestration sequences"
           >
             Common agent orchestration sequences
           </span>
@@ -11257,13 +11262,13 @@ exports[`screen snapshots > Workflows 1`] = `
     >
       <div>
         <div
-          class="flex items-center justify-between mb-3"
+          class="flex items-center justify-between gap-4 mb-3"
         >
           <div
-            class="flex items-center gap-2.5"
+            class="flex items-center gap-2.5 min-w-0"
           >
             <span
-              class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center"
+              class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center flex-shrink-0"
             >
               6
             </span>
@@ -11305,7 +11310,8 @@ exports[`screen snapshots > Workflows 1`] = `
             </button>
           </div>
           <span
-            class="text-[11px] text-gray-600 hidden lg:block"
+            class="hidden lg:block flex-shrink-0 max-w-[20rem] xl:max-w-sm truncate text-right text-[11px] text-gray-600"
+            title="How models route through agent hierarchies"
           >
             How models route through agent hierarchies
           </span>
@@ -11344,13 +11350,13 @@ exports[`screen snapshots > Workflows 1`] = `
       </div>
       <div>
         <div
-          class="flex items-center justify-between mb-3"
+          class="flex items-center justify-between gap-4 mb-3"
         >
           <div
-            class="flex items-center gap-2.5"
+            class="flex items-center gap-2.5 min-w-0"
           >
             <span
-              class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center"
+              class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center flex-shrink-0"
             >
               7
             </span>
@@ -11392,7 +11398,8 @@ exports[`screen snapshots > Workflows 1`] = `
             </button>
           </div>
           <span
-            class="text-[11px] text-gray-600 hidden lg:block"
+            class="hidden lg:block flex-shrink-0 max-w-[20rem] xl:max-w-sm truncate text-right text-[11px] text-gray-600"
+            title="Where errors cluster in agent hierarchy depth"
           >
             Where errors cluster in agent hierarchy depth
           </span>
@@ -11440,13 +11447,13 @@ exports[`screen snapshots > Workflows 1`] = `
     </div>
     <div>
       <div
-        class="flex items-center justify-between mb-3"
+        class="flex items-center justify-between gap-4 mb-3"
       >
         <div
-          class="flex items-center gap-2.5"
+          class="flex items-center gap-2.5 min-w-0"
         >
           <span
-            class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center"
+            class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center flex-shrink-0"
           >
             8
           </span>
@@ -11488,7 +11495,8 @@ exports[`screen snapshots > Workflows 1`] = `
           </button>
         </div>
         <span
-          class="text-[11px] text-gray-600 hidden lg:block"
+          class="hidden lg:block flex-shrink-0 max-w-[20rem] xl:max-w-sm truncate text-right text-[11px] text-gray-600"
+          title="Parallel agent execution patterns - Shows how agents overlap in time"
         >
           Parallel agent execution patterns - Shows how agents overlap in time
         </span>
@@ -11550,13 +11558,13 @@ exports[`screen snapshots > Workflows 1`] = `
     >
       <div>
         <div
-          class="flex items-center justify-between mb-3"
+          class="flex items-center justify-between gap-4 mb-3"
         >
           <div
-            class="flex items-center gap-2.5"
+            class="flex items-center gap-2.5 min-w-0"
           >
             <span
-              class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center"
+              class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center flex-shrink-0"
             >
               9
             </span>
@@ -11598,7 +11606,8 @@ exports[`screen snapshots > Workflows 1`] = `
             </button>
           </div>
           <span
-            class="text-[11px] text-gray-600 hidden lg:block"
+            class="hidden lg:block flex-shrink-0 max-w-[20rem] xl:max-w-sm truncate text-right text-[11px] text-gray-600"
+            title="Duration vs agent count vs tokens - Bubble size = token usage"
           >
             Duration vs agent count vs tokens - Bubble size = token usage
           </span>
@@ -11651,13 +11660,13 @@ exports[`screen snapshots > Workflows 1`] = `
       </div>
       <div>
         <div
-          class="flex items-center justify-between mb-3"
+          class="flex items-center justify-between gap-4 mb-3"
         >
           <div
-            class="flex items-center gap-2.5"
+            class="flex items-center gap-2.5 min-w-0"
           >
             <span
-              class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center"
+              class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center flex-shrink-0"
             >
               10
             </span>
@@ -11699,9 +11708,10 @@ exports[`screen snapshots > Workflows 1`] = `
             </button>
           </div>
           <span
-            class="text-[11px] text-gray-600 hidden lg:block"
+            class="hidden lg:block flex-shrink-0 max-w-[20rem] xl:max-w-sm truncate text-right text-[11px] text-gray-600"
+            title="How context compression is spread across your sessions"
           >
-            Context compression events and token recovery
+            How context compression is spread across your sessions
           </span>
         </div>
         <div
@@ -11743,13 +11753,13 @@ exports[`screen snapshots > Workflows 1`] = `
     </div>
     <div>
       <div
-        class="flex items-center justify-between mb-3"
+        class="flex items-center justify-between gap-4 mb-3"
       >
         <div
-          class="flex items-center gap-2.5"
+          class="flex items-center gap-2.5 min-w-0"
         >
           <span
-            class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center"
+            class="w-5 h-5 rounded-md bg-accent/15 text-accent text-[11px] font-bold flex items-center justify-center flex-shrink-0"
           >
             11
           </span>
@@ -11791,7 +11801,8 @@ exports[`screen snapshots > Workflows 1`] = `
           </button>
         </div>
         <span
-          class="text-[11px] text-gray-600 hidden lg:block"
+          class="hidden lg:block flex-shrink-0 max-w-[20rem] xl:max-w-sm truncate text-right text-[11px] text-gray-600"
+          title="Select a session from the scatter plot or use the dropdown to explore"
         >
           Select a session from the scatter plot or use the dropdown to explore
         </span>

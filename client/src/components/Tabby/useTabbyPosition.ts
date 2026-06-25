@@ -39,7 +39,7 @@ export interface TabbyPlacement {
   top: number;
   size: number;
   side: "left" | "right";
-  /** True when the avatar sits in the lower half — flyouts open upward. */
+  /** True when the avatar sits in the lower half - flyouts open upward. */
   openUp: boolean;
   dragging: boolean;
   onPointerDown: (e: ReactPointerEvent) => void;
@@ -58,7 +58,7 @@ export function useTabbyPosition(): TabbyPlacement {
   const startRef = useRef<{ px: number; py: number; left: number; top: number } | null>(null);
   const movedRef = useRef(false);
   // Latest dragged coords, mirrored in a ref so pointerup can read them
-  // synchronously — the setDrag state may not have committed yet under React's
+  // synchronously - the setDrag state may not have committed yet under React's
   // event batching, so we never rely on its functional-updater `cur`.
   const liveRef = useRef<{ left: number; top: number } | null>(null);
 
@@ -75,11 +75,11 @@ export function useTabbyPosition(): TabbyPlacement {
     (e: ReactPointerEvent) => {
       if (e.button !== undefined && e.button !== 0) return;
       // Capture so the avatar keeps receiving move/up events even when the
-      // pointer leaves it — essential for a fast, 1:1 drag.
+      // pointer leaves it - essential for a fast, 1:1 drag.
       try {
         (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
       } catch {
-        /* capture unsupported — window-free fallback still works via props */
+        /* capture unsupported - window-free fallback still works via props */
       }
       startRef.current = { px: e.clientX, py: e.clientY, left: screen.left, top: screen.top };
       movedRef.current = false;

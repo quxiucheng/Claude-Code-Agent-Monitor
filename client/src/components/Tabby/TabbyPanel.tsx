@@ -2,7 +2,7 @@
  * @file TabbyPanel.tsx
  * @description Expanded Tabby panel: a live status strip (live / waiting /
  *   errored stat chips + connection state), quick navigation actions, and a
- *   local "Ask" box. Pure presentational — all data and the ask/navigation
+ *   local "Ask" box. Pure presentational - all data and the ask/navigation
  *   behavior are injected by the container.
  * @author Son Nguyen <hoangson091104@gmail.com>
  */

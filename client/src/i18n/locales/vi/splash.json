@@ -1,0 +1,12 @@
+{
+  "greeting": {
+    "morning": "Chào buổi sáng",
+    "afternoon": "Chào buổi chiều",
+    "evening": "Chào buổi tối",
+    "night": "Đêm đã khuya"
+  },
+  "tagline": "Mọi điều agent của bạn làm đều không ẩn trong bóng tối.",
+  "sub1": "Khả năng quan sát thời gian thực cho mọi phiên Claude Code.",
+  "sub2": "Token, công cụ, chi phí và workflow, tất cả trực tiếp.",
+  "brand": "Giám sát Claude Code"
+}

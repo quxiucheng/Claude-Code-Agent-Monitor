@@ -3,7 +3,7 @@
  * @description Tabby's local "Ask" brain. Matches a free-text question against a
  *   small set of intents answerable from cached dashboard status. Anything it
  *   can't answer becomes a handoff to the Run page (spawn a real `claude`).
- *   Pure function — no network, no DOM — so it's fully unit-testable.
+ *   Pure function - no network, no DOM - so it's fully unit-testable.
  * @author Son Nguyen <hoangson091104@gmail.com>
  */
 
@@ -18,7 +18,7 @@ export function matchIntent(query: string, status: TabbyStatus): AskResult {
   if (!q) {
     return {
       kind: "answer",
-      text: "ask me about your sessions — what's running, any errors, or a quick status.",
+      text: "ask me about your sessions - what's running, any errors, or a quick status.",
     };
   }
 
@@ -37,8 +37,8 @@ export function matchIntent(query: string, status: TabbyStatus): AskResult {
       kind: "answer",
       text:
         status.errorCount > 0
-          ? `${status.errorCount} session${plural(status.errorCount)} errored — open the panel to jump to them.`
-          : "no errors — all clean 🐾",
+          ? `${status.errorCount} session${plural(status.errorCount)} errored - open the panel to jump to them.`
+          : "no errors - all clean 🐾",
     };
   }
 
@@ -59,7 +59,7 @@ export function matchIntent(query: string, status: TabbyStatus): AskResult {
       text:
         status.liveCount > 0
           ? `${status.liveCount} session${plural(status.liveCount)} live right now 🐾${tail}`
-          : "nothing's running right now — all quiet.",
+          : "nothing's running right now - all quiet.",
     };
   }
 

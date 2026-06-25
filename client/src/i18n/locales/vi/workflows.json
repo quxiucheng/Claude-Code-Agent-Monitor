@@ -421,13 +421,23 @@
   },
   "compaction": {
     "title": "Phân tích tác động nén ngữ cảnh",
-    "subtitle": "Sự kiện nén ngữ cảnh và lượng token thu hồi",
+    "subtitle": "Cách nén ngữ cảnh phân bố trên các phiên của bạn",
+    "help": "Khi cửa sổ ngữ cảnh của một phiên đầy, Claude Code nén phần lịch sử cũ thành bản tóm tắt. Mỗi lần nén dưới đây là một sự kiện như vậy.",
     "noData": "Chưa ghi nhận nén ngữ cảnh",
     "totalCompactions": "Tổng số lần nén",
+    "sessionsAffected": "Phiên bị ảnh hưởng",
+    "ofTotal": "trên {{total}}",
+    "avgPerSession": "TB / phiên bị ảnh hưởng",
+    "peakSession": "Nhiều nhất trong một phiên",
     "tokensRecovered": "Token thu hồi",
-    "distribution": "Phân bố nén theo phiên",
-    "hadCompactions": " phiên ({{pct}}%) có nén ngữ cảnh",
-    "ariaLabel": "Số lần nén theo từng phiên"
+    "distribution": "Số phiên theo số lần nén",
+    "xAxis": "Số lần nén mỗi phiên",
+    "yAxis": "Số phiên",
+    "summary": "{{affected}} trên {{total}} phiên ({{pct}}%) đã dùng nén ngữ cảnh.",
+    "tokensFreed": "Nén đã giải phóng ~{{tokens}} token ngữ cảnh.",
+    "ariaLabel": "Số phiên theo số lần nén",
+    "tipTitle": "Nén {{count}} lần",
+    "tipDetail": "{{sessions}} phiên · {{pct}}% số phiên bị ảnh hưởng"
   },
   "drillIn": {
     "title": "Phân tích chi tiết phiên",

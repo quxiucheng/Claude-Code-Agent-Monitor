@@ -421,13 +421,23 @@
   },
   "compaction": {
     "title": "压缩影响分析",
-    "subtitle": "上下文压缩事件和 Token 恢复",
+    "subtitle": "上下文压缩如何分布在你的各个会话中",
+    "help": "当会话的上下文窗口被填满时，Claude Code 会把较早的历史压缩成摘要。下面每一次压缩即为一次这样的事件。",
     "noData": "未记录压缩",
     "totalCompactions": "总压缩次数",
+    "sessionsAffected": "受影响会话",
+    "ofTotal": "共 {{total}} 个",
+    "avgPerSession": "每个受影响会话平均",
+    "peakSession": "单个会话最多",
     "tokensRecovered": "恢复的 Token 数",
-    "distribution": "跨会话的压缩分布",
-    "hadCompactions": " 个会话（{{pct}}%）存在压缩",
-    "ariaLabel": "每个会话的压缩次数"
+    "distribution": "按压缩次数统计的会话数",
+    "xAxis": "每会话压缩次数",
+    "yAxis": "会话数",
+    "summary": "{{total}} 个会话中有 {{affected}} 个（{{pct}}%）使用了上下文压缩。",
+    "tokensFreed": "压缩释放了约 {{tokens}} 个上下文 Token。",
+    "ariaLabel": "按压缩次数统计的会话数",
+    "tipTitle": "压缩 {{count}} 次",
+    "tipDetail": "{{sessions}} 个会话 · 占受影响 {{pct}}%"
   },
   "drillIn": {
     "title": "会话深入分析",

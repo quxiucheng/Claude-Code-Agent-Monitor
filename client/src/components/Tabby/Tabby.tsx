@@ -9,7 +9,7 @@
  *   they never spill off any screen edge regardless of where the cat is docked.
  *
  *   The "do the job" path reuses the existing Run page: unmatched Ask queries
- *   deep-link to /run?prompt=…&autostart=1 — no new LLM backend.
+ *   deep-link to /run?prompt=…&autostart=1 - no new LLM backend.
  * @author Son Nguyen <hoangson091104@gmail.com>
  */
 
@@ -82,7 +82,7 @@ function TabbyFlyout({ anchor, children }: { anchor: Anchor; children: ReactNode
     left = Math.min(vw - w - VIEWPORT_MARGIN, Math.max(VIEWPORT_MARGIN, left));
 
     // Vertical: prefer above the cat (feels natural). Only drop below when
-    // there isn't room above — i.e. the cat is near the top edge.
+    // there isn't room above - i.e. the cat is near the top edge.
     const above = anchor.top - h - FLYOUT_GAP;
     const below = anchor.top + anchor.size + FLYOUT_GAP;
     let top = above >= VIEWPORT_MARGIN ? above : below;
@@ -199,14 +199,14 @@ export function Tabby() {
         onPointerMove={place.onPointerMove}
         onPointerUp={place.onPointerUp}
         onClick={() => {
-          // A drag just ended — swallow the synthetic click so the panel
+          // A drag just ended - swallow the synthetic click so the panel
           // doesn't toggle when the user only repositioned the avatar.
           if (place.consumeDrag()) return;
           setOpen((v) => !v);
         }}
         aria-label={open ? "Close Tabby" : "Open Tabby companion"}
         aria-expanded={open}
-        title="Tabby — ⌘B · drag to move"
+        title="Tabby - ⌘B · drag to move"
       >
         <CatAvatar mood={brain.mood} reducedMotion={reducedMotion} />
         {brain.status.errorCount > 0 && (

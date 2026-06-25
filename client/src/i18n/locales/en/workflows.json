@@ -421,13 +421,23 @@
   },
   "compaction": {
     "title": "Compaction Impact Analysis",
-    "subtitle": "Context compression events and token recovery",
+    "subtitle": "How context compression is spread across your sessions",
+    "help": "When a session's context window fills up, Claude Code compresses older history into a summary. Each compaction is one such event.",
     "noData": "No compactions recorded",
-    "totalCompactions": "Total Compactions",
+    "totalCompactions": "Total compactions",
+    "sessionsAffected": "Sessions affected",
+    "ofTotal": "of {{total}}",
+    "avgPerSession": "Avg / affected session",
+    "peakSession": "Most in one session",
     "tokensRecovered": "Tokens Recovered",
-    "distribution": "Compaction distribution across sessions",
-    "hadCompactions": " sessions ({{pct}}%) had compactions",
-    "ariaLabel": "Compaction count per session"
+    "distribution": "Sessions by compaction count",
+    "xAxis": "Compactions per session",
+    "yAxis": "Sessions",
+    "summary": "{{affected}} of {{total}} sessions ({{pct}}%) used context compaction.",
+    "tokensFreed": "Compaction freed ~{{tokens}} tokens of context.",
+    "ariaLabel": "Number of sessions by compaction count",
+    "tipTitle": "Compacted {{count}}x",
+    "tipDetail": "{{sessions}} sessions · {{pct}}% of affected"
   },
   "drillIn": {
     "title": "Session Drill-In",

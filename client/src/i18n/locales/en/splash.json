@@ -1,0 +1,12 @@
+{
+  "greeting": {
+    "morning": "Good morning",
+    "afternoon": "Good afternoon",
+    "evening": "Good evening",
+    "night": "Working late"
+  },
+  "tagline": "Nothing your agents do stays in the dark.",
+  "sub1": "Real-time observability for every Claude Code session.",
+  "sub2": "Tokens, tools, costs, and workflows, all live.",
+  "brand": "Claude Code Monitor"
+}

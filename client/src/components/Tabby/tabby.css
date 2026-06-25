@@ -1,5 +1,5 @@
 /**
- * tabby.css — animations + mood expressions for the Tabby companion.
+ * tabby.css - animations + mood expressions for the Tabby companion.
  * Colors mirror the app's theme tokens (accent #6366f1/#818cf8, surface scale)
  * with warm pink accents (ears, cheeks, nose) for cuteness. All continuous
  * motion is disabled under [data-reduced="1"] and prefers-reduced-motion.
@@ -254,7 +254,7 @@
   transform-origin: 50px 60px;
 }
 /* Blink lives on the inner group so it never overrides the outer group's
-   eye-tracking translate (which would freeze the eyes — see CatAvatar). */
+   eye-tracking translate (which would freeze the eyes - see CatAvatar). */
 .tabby-cat[data-mood="idle"] .tabby-pupils-blink {
   animation: tabby-blink 5s ease-in-out infinite;
   transform-origin: 50px 50px;

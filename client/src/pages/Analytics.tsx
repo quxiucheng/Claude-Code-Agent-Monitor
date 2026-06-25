@@ -21,7 +21,7 @@ import { api } from "../lib/api";
 import { eventBus } from "../lib/eventBus";
 import { fmt, fmtCost, fmtCostFull, formatModelName } from "../lib/format";
 import { Tip } from "../components/Tip";
-import { StatValueSkeleton, TextSkeleton } from "../components/Skeleton";
+import { Skeleton, StatValueSkeleton, TextSkeleton } from "../components/Skeleton";
 import type { Analytics as AnalyticsData, CostResult } from "../lib/types";
 
 // ── Tooltip ───────────────────────────────────────────────────────────────────
@@ -552,6 +552,50 @@ function StatPill({
   );
 }
 
+// ── Loading skeleton ───────────────────────────────────────────────────────────
+
+/** A single chart-card placeholder: title bar, chart body, two footer lines.
+ *  Uses the shared pulsing <Skeleton> so the whole grid shimmers while data
+ *  loads (mirrors the chart-card layout so nothing jumps when data arrives). */
+function ChartCardSkeleton({
+  className = "",
+  bodyH = "h-32",
+}: {
+  className?: string;
+  bodyH?: string;
+}) {
+  return (
+    <div className={`card p-5 space-y-4 ${className}`} aria-busy="true" aria-label="Loading">
+      <Skeleton className="h-4 w-1/3" />
+      <Skeleton className={`block w-full ${bodyH}`} rounded="lg" />
+      <div className="space-y-2 pt-1">
+        <Skeleton className="block h-3 w-2/3" />
+        <Skeleton className="block h-3 w-1/2" />
+      </div>
+    </div>
+  );
+}
+
+/** Pulsing placeholder for the Analytics chart region (heatmap + sparkline row,
+ *  tab bar, and the three-up chart grid) shown while the analytics payload is
+ *  still being fetched. */
+function AnalyticsChartsSkeleton() {
+  return (
+    <div className="space-y-6" aria-busy="true" aria-label="Loading analytics charts">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <ChartCardSkeleton className="lg:col-span-2" bodyH="h-32" />
+        <ChartCardSkeleton bodyH="h-32" />
+      </div>
+      <Skeleton className="block h-9 w-80" rounded="lg" />
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <ChartCardSkeleton bodyH="h-44" />
+        <ChartCardSkeleton bodyH="h-44" />
+        <ChartCardSkeleton bodyH="h-44" />
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export function Analytics() {
@@ -885,475 +929,486 @@ export function Analytics() {
         />
       </div>
 
-      {/* Activity heatmap + 30-day sparkline */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="card p-5 lg:col-span-2">
-          <h3 className="text-sm font-medium text-gray-300 mb-4">{t("eventActivity")}</h3>
-          <div className="overflow-x-auto">
-            <div className="w-fit min-w-max mx-auto">
-              <Heatmap weeks={weeks} />
-            </div>
-          </div>
-        </div>
-        <div className="card p-5">
-          <h3 className="text-sm font-medium text-gray-300 mb-1">{t("last30Days")}</h3>
-          <p className="text-[11px] text-gray-600 mb-4">{t("dailyEventCount")}</p>
-          <Sparkline data={last30} />
-          <div className="flex justify-between text-[11px] text-gray-600 mt-2">
-            <span>{last30[0]?.date?.slice(5)}</span>
-            <span>{last30[last30.length - 1]?.date?.slice(5)}</span>
-          </div>
-          <div className="mt-4 pt-4 border-t border-border space-y-1">
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-500">{t("peakDay")}</span>
-              <span className="text-gray-300 font-mono">
-                <Tip raw={Math.max(...last30.map((d) => d.count)).toLocaleString()}>
-                  {fmt(Math.max(...last30.map((d) => d.count)))}
-                </Tip>{" "}
-                {t("common:events")}
-              </span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-500">{t("total30d")}</span>
-              <span className="text-gray-300 font-mono">
-                <Tip raw={last30.reduce((s, d) => s + d.count, 0).toLocaleString()}>
-                  {fmt(last30.reduce((s, d) => s + d.count, 0))}
-                </Tip>{" "}
-                {t("common:events")}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div>
-        <div className="flex gap-1 bg-surface-2 rounded-lg p-1 mb-6 w-fit">
-          {(
-            [
-              { key: "cost" as const, label: t("tabs.costAnalytics") },
-              { key: "tokens" as const, label: t("tabs.tokenAnalytics") },
-              { key: "productivity" as const, label: t("tabs.productivityAnalytics") },
-              { key: "workflow" as const, label: t("tabs.workflowIntelligence") },
-            ] as const
-          ).map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${
-                activeTab === key
-                  ? "bg-surface-4 text-gray-200"
-                  : "text-gray-500 hover:text-gray-300"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {activeTab === "tokens" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Token bars */}
-            <div className="card p-5">
-              <h3 className="text-sm font-medium text-gray-300 mb-5">{t("tokenDistribution")}</h3>
-              <div className="space-y-4">
-                {[
-                  {
-                    label: t("common:token.input"),
-                    value: data?.tokens.total_input ?? 0,
-                    color: "bg-blue-400",
-                  },
-                  {
-                    label: t("common:token.output"),
-                    value: data?.tokens.total_output ?? 0,
-                    color: "bg-emerald-400",
-                  },
-                  {
-                    label: t("common:token.cacheRead"),
-                    value: data?.tokens.total_cache_read ?? 0,
-                    color: "bg-violet-400",
-                  },
-                  {
-                    label: t("common:token.cacheWrite"),
-                    value: data?.tokens.total_cache_write ?? 0,
-                    color: "bg-yellow-400",
-                  },
-                ].map(({ label, value, color }) => (
-                  <BarRow
-                    key={label}
-                    label={label}
-                    count={value}
-                    max={Math.max(totalTokens, 1)}
-                    color={color}
-                  />
-                ))}
-              </div>
-              <div className="mt-6 pt-4 border-t border-border space-y-1.5">
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>{t("common:token.totalTokens")}</span>
-                  <Tip raw={totalTokens.toLocaleString()}>
-                    <span className="text-gray-300 font-mono">{fmt(totalTokens)}</span>
-                  </Tip>
-                </div>
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>{t("cacheEfficiency")}</span>
-                  <span className="text-violet-400 font-mono">{cacheHitPct}%</span>
+      {!data ? (
+        <AnalyticsChartsSkeleton />
+      ) : (
+        <>
+          {/* Activity heatmap + 30-day sparkline */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="card p-5 lg:col-span-2">
+              <h3 className="text-sm font-medium text-gray-300 mb-4">{t("eventActivity")}</h3>
+              <div className="overflow-x-auto">
+                <div className="w-fit min-w-max mx-auto">
+                  <Heatmap weeks={weeks} />
                 </div>
               </div>
             </div>
-
-            {/* Token summary */}
             <div className="card p-5">
-              <h3 className="text-sm font-medium text-gray-300 mb-5">{t("tokenBreakdown")}</h3>
-              <div className="space-y-3">
-                {[
-                  {
-                    label: t("common:token.input"),
-                    value: data?.tokens.total_input ?? 0,
-                    color: "text-blue-400",
-                  },
-                  {
-                    label: t("common:token.output"),
-                    value: data?.tokens.total_output ?? 0,
-                    color: "text-emerald-400",
-                  },
-                  {
-                    label: t("common:token.cacheRead"),
-                    value: data?.tokens.total_cache_read ?? 0,
-                    color: "text-violet-400",
-                  },
-                  {
-                    label: t("common:token.cacheWrite"),
-                    value: data?.tokens.total_cache_write ?? 0,
-                    color: "text-yellow-400",
-                  },
-                  { label: t("common:total"), value: totalTokens, color: "text-gray-100" },
-                ].map(({ label, value, color }) => (
-                  <div
-                    key={label}
-                    className="flex justify-between items-center py-2 border-b border-border last:border-0"
-                  >
-                    <span className="text-xs text-gray-400">{label}</span>
-                    <span className={`text-sm font-mono font-medium ${color}`}>
-                      {value.toLocaleString()}
-                    </span>
-                  </div>
-                ))}
+              <h3 className="text-sm font-medium text-gray-300 mb-1">{t("last30Days")}</h3>
+              <p className="text-[11px] text-gray-600 mb-4">{t("dailyEventCount")}</p>
+              <Sparkline data={last30} />
+              <div className="flex justify-between text-[11px] text-gray-600 mt-2">
+                <span>{last30[0]?.date?.slice(5)}</span>
+                <span>{last30[last30.length - 1]?.date?.slice(5)}</span>
               </div>
-              {totalTokens === 0 && (
-                <p className="text-[11px] text-gray-600 mt-4">{t("tokenInfo")}</p>
-              )}
-            </div>
-
-            {/* Token mix donut */}
-            <div className="card p-5">
-              <h3 className="text-sm font-medium text-gray-300 mb-5">{t("tokenMix")}</h3>
-              {tokenMixSegments.length === 0 ? (
-                <p className="text-sm text-gray-500">{t("common:noData")}</p>
-              ) : (
-                <>
-                  <DonutChart segments={tokenMixSegments} formatTotal={(total) => fmt(total)} />
-                  <div className="mt-4 pt-4 border-t border-border space-y-2">
-                    {tokenMixSegments.map((segment) => (
-                      <div key={segment.label} className="flex justify-between text-xs">
-                        <span className="text-gray-400">{segment.label}</span>
-                        <span className="text-gray-300 font-mono">
-                          <Tip raw={segment.value.toLocaleString()}>{fmt(segment.value)}</Tip>
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
+              <div className="mt-4 pt-4 border-t border-border space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-500">{t("peakDay")}</span>
+                  <span className="text-gray-300 font-mono">
+                    <Tip raw={Math.max(...last30.map((d) => d.count)).toLocaleString()}>
+                      {fmt(Math.max(...last30.map((d) => d.count)))}
+                    </Tip>{" "}
+                    {t("common:events")}
+                  </span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-500">{t("total30d")}</span>
+                  <span className="text-gray-300 font-mono">
+                    <Tip raw={last30.reduce((s, d) => s + d.count, 0).toLocaleString()}>
+                      {fmt(last30.reduce((s, d) => s + d.count, 0))}
+                    </Tip>{" "}
+                    {t("common:events")}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
-        )}
 
-        {activeTab === "cost" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Daily cost trends */}
-            <div className="card p-5">
-              <h3 className="text-sm font-medium text-gray-300 mb-1">{t("dailyCostTrends")}</h3>
-              {dailyCostsLocal.length === 0 ? (
-                <p className="text-sm text-gray-500">{t("noDailyCostData")}</p>
-              ) : (
-                <>
-                  <p className="text-[11px] text-gray-600 mb-4">{t("costPerDay")}</p>
-                  <CostTrendLine data={dailyCostLast30} />
-                  <div className="flex justify-between text-[11px] text-gray-600 mt-2">
-                    <span>{dailyCostLast30[0]?.date?.slice(5)}</span>
-                    <span>{dailyCostLast30[dailyCostLast30.length - 1]?.date?.slice(5)}</span>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-border space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-500">{t("peakCostDay")}</span>
-                      <span className="text-emerald-400 font-mono">
-                        <Tip raw={`${peakCostDay.date} • ${fmtCostFull(peakCostDay.cost)}`}>
-                          {fmtCost(peakCostDay.cost)}
-                        </Tip>
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-500">{t("totalCost30d")}</span>
-                      <span className="text-emerald-400 font-mono">
-                        <Tip raw={fmtCostFull(totalCost30d)}>{fmtCost(totalCost30d)}</Tip>
-                      </span>
-                    </div>
-                  </div>
-                </>
-              )}
+          {/* Tabs */}
+          <div>
+            <div className="flex gap-1 bg-surface-2 rounded-lg p-1 mb-6 w-fit">
+              {(
+                [
+                  { key: "cost" as const, label: t("tabs.costAnalytics") },
+                  { key: "tokens" as const, label: t("tabs.tokenAnalytics") },
+                  { key: "productivity" as const, label: t("tabs.productivityAnalytics") },
+                  { key: "workflow" as const, label: t("tabs.workflowIntelligence") },
+                ] as const
+              ).map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveTab(key)}
+                  className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    activeTab === key
+                      ? "bg-surface-4 text-gray-200"
+                      : "text-gray-500 hover:text-gray-300"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
-            {/* Cost by model */}
-            <div className="card p-5">
-              <h3 className="text-sm font-medium text-gray-300 mb-5">{t("costByModel")}</h3>
-              {costBreakdown.length > 0 ? (
-                <>
-                  <DonutChart
-                    segments={costBreakdown.map((b, i) => ({
-                      label: formatModelName(b.model) ?? b.model,
-                      value: Math.round(b.cost * 100),
-                      color:
-                        ["#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#ec4899"][i % 6] ??
-                        "#6b7280",
-                    }))}
-                    formatTotal={(cents) => fmtCost(cents / 100)}
-                  />
-                  <div className="mt-4 pt-4 border-t border-border space-y-2">
-                    {costBreakdown.map((b) => (
-                      <div key={b.model} className="flex justify-between text-xs">
-                        <span className="text-gray-400 font-mono truncate">
-                          {formatModelName(b.model)}
-                        </span>
-                        <span className="text-emerald-400 font-mono font-medium ml-2">
-                          <Tip raw={fmtCostFull(b.cost)}>{fmtCost(b.cost)}</Tip>
-                        </span>
-                      </div>
-                    ))}
-                    <div className="flex justify-between text-xs pt-2 border-t border-border">
-                      <span className="text-gray-300 font-medium">{t("common:total")}</span>
-                      <span className="text-emerald-400 font-mono font-semibold">
-                        <Tip raw={fmtCostFull(costData?.total_cost ?? 0)}>
-                          {fmtCost(costData?.total_cost ?? 0)}
-                        </Tip>
-                      </span>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-gray-500">{t("noCostData")}</p>
-              )}
-            </div>
-
-            {/* Cost by weekday */}
-            <div className="card p-5">
-              <h3 className="text-sm font-medium text-gray-300 mb-1">{t("costByWeekday")}</h3>
-              {dailyCostsLocal.length === 0 ? (
-                <p className="text-sm text-gray-500">{t("noDailyCostData")}</p>
-              ) : (
-                <>
-                  <p className="text-[11px] text-gray-600 mb-4">{t("last30Days")}</p>
-                  <div className="space-y-3">
-                    {weekdayCosts.map(({ label, cost }) => (
-                      <CostBarRow
+            {activeTab === "tokens" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Token bars */}
+                <div className="card p-5">
+                  <h3 className="text-sm font-medium text-gray-300 mb-5">
+                    {t("tokenDistribution")}
+                  </h3>
+                  <div className="space-y-4">
+                    {[
+                      {
+                        label: t("common:token.input"),
+                        value: data?.tokens.total_input ?? 0,
+                        color: "bg-blue-400",
+                      },
+                      {
+                        label: t("common:token.output"),
+                        value: data?.tokens.total_output ?? 0,
+                        color: "bg-emerald-400",
+                      },
+                      {
+                        label: t("common:token.cacheRead"),
+                        value: data?.tokens.total_cache_read ?? 0,
+                        color: "bg-violet-400",
+                      },
+                      {
+                        label: t("common:token.cacheWrite"),
+                        value: data?.tokens.total_cache_write ?? 0,
+                        color: "bg-yellow-400",
+                      },
+                    ].map(({ label, value, color }) => (
+                      <BarRow
                         key={label}
                         label={label}
-                        cost={cost}
-                        max={maxWeekdayCost}
-                        color="bg-cyan-400"
+                        count={value}
+                        max={Math.max(totalTokens, 1)}
+                        color={color}
                       />
                     ))}
                   </div>
-                  <div className="mt-4 pt-4 border-t border-border text-xs flex justify-between">
-                    <span className="text-gray-500">{t("common:total")}</span>
-                    <span className="text-cyan-400 font-mono">
-                      <Tip raw={fmtCostFull(totalCost30d)}>{fmtCost(totalCost30d)}</Tip>
-                    </span>
+                  <div className="mt-6 pt-4 border-t border-border space-y-1.5">
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>{t("common:token.totalTokens")}</span>
+                      <Tip raw={totalTokens.toLocaleString()}>
+                        <span className="text-gray-300 font-mono">{fmt(totalTokens)}</span>
+                      </Tip>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>{t("cacheEfficiency")}</span>
+                      <span className="text-violet-400 font-mono">{cacheHitPct}%</span>
+                    </div>
                   </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === "workflow" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Agent type distribution */}
-            <div className="card p-5">
-              <h3 className="text-sm font-medium text-gray-300 mb-5">{t("subagentTypes")}</h3>
-              {(data?.agent_types ?? []).length === 0 ? (
-                <p className="text-sm text-gray-500">{t("noSubagentData")}</p>
-              ) : (
-                <div className="space-y-3">
-                  {(data?.agent_types ?? []).slice(0, 10).map(({ subagent_type, count }) => (
-                    <BarRow
-                      key={subagent_type}
-                      label={subagent_type}
-                      count={count}
-                      max={maxAgentTypeCount}
-                      color="bg-violet-400"
-                    />
-                  ))}
                 </div>
-              )}
-            </div>
 
-            {/* Agent status donut */}
-            <div className="card p-5">
-              <h3 className="text-sm font-medium text-gray-300 mb-5">{t("agentStatus")}</h3>
-              <DonutChart segments={agentStatusSegments} />
-              <div className="mt-4 pt-4 border-t border-border space-y-1.5">
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>{t("totalAgentsLabel")}</span>
-                  <Tip raw={(data?.overview.total_agents ?? 0).toLocaleString()}>
-                    <span className="text-gray-300 font-mono">
-                      {fmt(data?.overview.total_agents ?? 0)}
-                    </span>
-                  </Tip>
-                </div>
-                {agentStatusSegments.map((s) => (
-                  <div
-                    key={s.label}
-                    className="flex items-center justify-between text-xs text-gray-500"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <span
-                        className="w-2 h-2 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: s.color }}
-                      />
-                      {s.label}
-                    </span>
-                    <Tip raw={s.value.toLocaleString()}>
-                      <span className="text-gray-400 font-mono">{fmt(s.value)}</span>
-                    </Tip>
+                {/* Token summary */}
+                <div className="card p-5">
+                  <h3 className="text-sm font-medium text-gray-300 mb-5">{t("tokenBreakdown")}</h3>
+                  <div className="space-y-3">
+                    {[
+                      {
+                        label: t("common:token.input"),
+                        value: data?.tokens.total_input ?? 0,
+                        color: "text-blue-400",
+                      },
+                      {
+                        label: t("common:token.output"),
+                        value: data?.tokens.total_output ?? 0,
+                        color: "text-emerald-400",
+                      },
+                      {
+                        label: t("common:token.cacheRead"),
+                        value: data?.tokens.total_cache_read ?? 0,
+                        color: "text-violet-400",
+                      },
+                      {
+                        label: t("common:token.cacheWrite"),
+                        value: data?.tokens.total_cache_write ?? 0,
+                        color: "text-yellow-400",
+                      },
+                      { label: t("common:total"), value: totalTokens, color: "text-gray-100" },
+                    ].map(({ label, value, color }) => (
+                      <div
+                        key={label}
+                        className="flex justify-between items-center py-2 border-b border-border last:border-0"
+                      >
+                        <span className="text-xs text-gray-400">{label}</span>
+                        <span className={`text-sm font-mono font-medium ${color}`}>
+                          {value.toLocaleString()}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Event type breakdown */}
-            <div className="card p-5">
-              <h3 className="text-sm font-medium text-gray-300 mb-5">{t("eventTypes")}</h3>
-              {(data?.event_types ?? []).length === 0 ? (
-                <p className="text-sm text-gray-500">{t("noEventData")}</p>
-              ) : (
-                <div className="space-y-3">
-                  {(data?.event_types ?? []).map(({ event_type, count }) => (
-                    <BarRow
-                      key={event_type}
-                      label={event_type}
-                      count={count}
-                      max={maxEventTypeCount}
-                      color={EVENT_TYPE_COLORS[event_type] ?? "bg-gray-400"}
-                    />
-                  ))}
+                  {totalTokens === 0 && (
+                    <p className="text-[11px] text-gray-600 mt-4">{t("tokenInfo")}</p>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
-        )}
 
-        {activeTab === "productivity" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Top tools */}
-            <div className="card p-5">
-              <h3 className="text-sm font-medium text-gray-300 mb-5">{t("toolUsage")}</h3>
-              {(data?.tool_usage ?? []).length === 0 ? (
-                <p className="text-sm text-gray-500">{t("noToolData")}</p>
-              ) : (
-                <div className="space-y-3">
-                  {(data?.tool_usage ?? []).slice(0, 12).map(({ tool_name, count }) => (
-                    <BarRow
-                      key={tool_name}
-                      label={tool_name}
-                      count={count}
-                      max={maxToolCount}
-                      color="bg-yellow-400"
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Session outcomes donut */}
-            <div className="card p-5">
-              <h3 className="text-sm font-medium text-gray-300 mb-5">{t("sessionOutcomes")}</h3>
-              <DonutChart segments={sessionOutcomeSegments} />
-              <div className="mt-4 pt-4 border-t border-border space-y-1.5">
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>{t("totalSessionsLabel")}</span>
-                  <Tip raw={(data?.overview.total_sessions ?? 0).toLocaleString()}>
-                    <span className="text-gray-300 font-mono">
-                      {fmt(data?.overview.total_sessions ?? 0)}
-                    </span>
-                  </Tip>
-                </div>
-                {sessionOutcomeSegments.map((s) => (
-                  <div
-                    key={s.label}
-                    className="flex items-center justify-between text-xs text-gray-500"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <span
-                        className="w-2 h-2 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: s.color }}
-                      />
-                      {s.label}
-                    </span>
-                    <Tip raw={s.value.toLocaleString()}>
-                      <span className="text-gray-400 font-mono">{fmt(s.value)}</span>
-                    </Tip>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Daily session trends */}
-            <div className="card p-5">
-              <h3 className="text-sm font-medium text-gray-300 mb-5">{t("dailySessionTrends")}</h3>
-              {dailySessionsLocal.length === 0 ? (
-                <p className="text-sm text-gray-500">{t("noSessionTrendData")}</p>
-              ) : (
-                <>
-                  <Sparkline data={dailySessionsLocal.slice(-30)} color="#6366f1" />
-                  <div className="mt-4 space-y-2">
-                    {dailySessionsLocal
-                      .slice(-7)
-                      .reverse()
-                      .map(({ date, count }) => {
-                        const maxD = Math.max(
-                          ...(dailySessionsLocal.length > 0
-                            ? dailySessionsLocal
-                            : [{ count: 1 }]
-                          ).map((d) => d.count)
-                        );
-                        return (
-                          <div key={date} className="flex items-center gap-3">
-                            <span className="text-[11px] text-gray-500 font-mono w-20 flex-shrink-0">
-                              {date.slice(5)}
-                            </span>
-                            <div className="flex-1 bg-surface-3 rounded-full h-1.5">
-                              <div
-                                className="bg-accent h-1.5 rounded-full"
-                                style={{
-                                  width: `${Math.round((count / Math.max(maxD, 1)) * 100)}%`,
-                                }}
-                              />
-                            </div>
-                            <span className="text-[11px] text-gray-500 w-4 text-right">
-                              {count}
+                {/* Token mix donut */}
+                <div className="card p-5">
+                  <h3 className="text-sm font-medium text-gray-300 mb-5">{t("tokenMix")}</h3>
+                  {tokenMixSegments.length === 0 ? (
+                    <p className="text-sm text-gray-500">{t("common:noData")}</p>
+                  ) : (
+                    <>
+                      <DonutChart segments={tokenMixSegments} formatTotal={(total) => fmt(total)} />
+                      <div className="mt-4 pt-4 border-t border-border space-y-2">
+                        {tokenMixSegments.map((segment) => (
+                          <div key={segment.label} className="flex justify-between text-xs">
+                            <span className="text-gray-400">{segment.label}</span>
+                            <span className="text-gray-300 font-mono">
+                              <Tip raw={segment.value.toLocaleString()}>{fmt(segment.value)}</Tip>
                             </span>
                           </div>
-                        );
-                      })}
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === "cost" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Daily cost trends */}
+                <div className="card p-5">
+                  <h3 className="text-sm font-medium text-gray-300 mb-1">{t("dailyCostTrends")}</h3>
+                  {dailyCostsLocal.length === 0 ? (
+                    <p className="text-sm text-gray-500">{t("noDailyCostData")}</p>
+                  ) : (
+                    <>
+                      <p className="text-[11px] text-gray-600 mb-4">{t("costPerDay")}</p>
+                      <CostTrendLine data={dailyCostLast30} />
+                      <div className="flex justify-between text-[11px] text-gray-600 mt-2">
+                        <span>{dailyCostLast30[0]?.date?.slice(5)}</span>
+                        <span>{dailyCostLast30[dailyCostLast30.length - 1]?.date?.slice(5)}</span>
+                      </div>
+                      <div className="mt-4 pt-4 border-t border-border space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">{t("peakCostDay")}</span>
+                          <span className="text-emerald-400 font-mono">
+                            <Tip raw={`${peakCostDay.date} • ${fmtCostFull(peakCostDay.cost)}`}>
+                              {fmtCost(peakCostDay.cost)}
+                            </Tip>
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500">{t("totalCost30d")}</span>
+                          <span className="text-emerald-400 font-mono">
+                            <Tip raw={fmtCostFull(totalCost30d)}>{fmtCost(totalCost30d)}</Tip>
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Cost by model */}
+                <div className="card p-5">
+                  <h3 className="text-sm font-medium text-gray-300 mb-5">{t("costByModel")}</h3>
+                  {costBreakdown.length > 0 ? (
+                    <>
+                      <DonutChart
+                        segments={costBreakdown.map((b, i) => ({
+                          label: formatModelName(b.model) ?? b.model,
+                          value: Math.round(b.cost * 100),
+                          color:
+                            ["#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#ec4899"][
+                              i % 6
+                            ] ?? "#6b7280",
+                        }))}
+                        formatTotal={(cents) => fmtCost(cents / 100)}
+                      />
+                      <div className="mt-4 pt-4 border-t border-border space-y-2">
+                        {costBreakdown.map((b) => (
+                          <div key={b.model} className="flex justify-between text-xs">
+                            <span className="text-gray-400 font-mono truncate">
+                              {formatModelName(b.model)}
+                            </span>
+                            <span className="text-emerald-400 font-mono font-medium ml-2">
+                              <Tip raw={fmtCostFull(b.cost)}>{fmtCost(b.cost)}</Tip>
+                            </span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between text-xs pt-2 border-t border-border">
+                          <span className="text-gray-300 font-medium">{t("common:total")}</span>
+                          <span className="text-emerald-400 font-mono font-semibold">
+                            <Tip raw={fmtCostFull(costData?.total_cost ?? 0)}>
+                              {fmtCost(costData?.total_cost ?? 0)}
+                            </Tip>
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-500">{t("noCostData")}</p>
+                  )}
+                </div>
+
+                {/* Cost by weekday */}
+                <div className="card p-5">
+                  <h3 className="text-sm font-medium text-gray-300 mb-1">{t("costByWeekday")}</h3>
+                  {dailyCostsLocal.length === 0 ? (
+                    <p className="text-sm text-gray-500">{t("noDailyCostData")}</p>
+                  ) : (
+                    <>
+                      <p className="text-[11px] text-gray-600 mb-4">{t("last30Days")}</p>
+                      <div className="space-y-3">
+                        {weekdayCosts.map(({ label, cost }) => (
+                          <CostBarRow
+                            key={label}
+                            label={label}
+                            cost={cost}
+                            max={maxWeekdayCost}
+                            color="bg-cyan-400"
+                          />
+                        ))}
+                      </div>
+                      <div className="mt-4 pt-4 border-t border-border text-xs flex justify-between">
+                        <span className="text-gray-500">{t("common:total")}</span>
+                        <span className="text-cyan-400 font-mono">
+                          <Tip raw={fmtCostFull(totalCost30d)}>{fmtCost(totalCost30d)}</Tip>
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === "workflow" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Agent type distribution */}
+                <div className="card p-5">
+                  <h3 className="text-sm font-medium text-gray-300 mb-5">{t("subagentTypes")}</h3>
+                  {(data?.agent_types ?? []).length === 0 ? (
+                    <p className="text-sm text-gray-500">{t("noSubagentData")}</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {(data?.agent_types ?? []).slice(0, 10).map(({ subagent_type, count }) => (
+                        <BarRow
+                          key={subagent_type}
+                          label={subagent_type}
+                          count={count}
+                          max={maxAgentTypeCount}
+                          color="bg-violet-400"
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Agent status donut */}
+                <div className="card p-5">
+                  <h3 className="text-sm font-medium text-gray-300 mb-5">{t("agentStatus")}</h3>
+                  <DonutChart segments={agentStatusSegments} />
+                  <div className="mt-4 pt-4 border-t border-border space-y-1.5">
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>{t("totalAgentsLabel")}</span>
+                      <Tip raw={(data?.overview.total_agents ?? 0).toLocaleString()}>
+                        <span className="text-gray-300 font-mono">
+                          {fmt(data?.overview.total_agents ?? 0)}
+                        </span>
+                      </Tip>
+                    </div>
+                    {agentStatusSegments.map((s) => (
+                      <div
+                        key={s.label}
+                        className="flex items-center justify-between text-xs text-gray-500"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <span
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: s.color }}
+                          />
+                          {s.label}
+                        </span>
+                        <Tip raw={s.value.toLocaleString()}>
+                          <span className="text-gray-400 font-mono">{fmt(s.value)}</span>
+                        </Tip>
+                      </div>
+                    ))}
                   </div>
-                  <p className="text-[11px] text-gray-600 mt-3">{t("last7Days")}</p>
-                </>
-              )}
-            </div>
+                </div>
+
+                {/* Event type breakdown */}
+                <div className="card p-5">
+                  <h3 className="text-sm font-medium text-gray-300 mb-5">{t("eventTypes")}</h3>
+                  {(data?.event_types ?? []).length === 0 ? (
+                    <p className="text-sm text-gray-500">{t("noEventData")}</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {(data?.event_types ?? []).map(({ event_type, count }) => (
+                        <BarRow
+                          key={event_type}
+                          label={event_type}
+                          count={count}
+                          max={maxEventTypeCount}
+                          color={EVENT_TYPE_COLORS[event_type] ?? "bg-gray-400"}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === "productivity" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* Top tools */}
+                <div className="card p-5">
+                  <h3 className="text-sm font-medium text-gray-300 mb-5">{t("toolUsage")}</h3>
+                  {(data?.tool_usage ?? []).length === 0 ? (
+                    <p className="text-sm text-gray-500">{t("noToolData")}</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {(data?.tool_usage ?? []).slice(0, 12).map(({ tool_name, count }) => (
+                        <BarRow
+                          key={tool_name}
+                          label={tool_name}
+                          count={count}
+                          max={maxToolCount}
+                          color="bg-yellow-400"
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Session outcomes donut */}
+                <div className="card p-5">
+                  <h3 className="text-sm font-medium text-gray-300 mb-5">{t("sessionOutcomes")}</h3>
+                  <DonutChart segments={sessionOutcomeSegments} />
+                  <div className="mt-4 pt-4 border-t border-border space-y-1.5">
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>{t("totalSessionsLabel")}</span>
+                      <Tip raw={(data?.overview.total_sessions ?? 0).toLocaleString()}>
+                        <span className="text-gray-300 font-mono">
+                          {fmt(data?.overview.total_sessions ?? 0)}
+                        </span>
+                      </Tip>
+                    </div>
+                    {sessionOutcomeSegments.map((s) => (
+                      <div
+                        key={s.label}
+                        className="flex items-center justify-between text-xs text-gray-500"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <span
+                            className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: s.color }}
+                          />
+                          {s.label}
+                        </span>
+                        <Tip raw={s.value.toLocaleString()}>
+                          <span className="text-gray-400 font-mono">{fmt(s.value)}</span>
+                        </Tip>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Daily session trends */}
+                <div className="card p-5">
+                  <h3 className="text-sm font-medium text-gray-300 mb-5">
+                    {t("dailySessionTrends")}
+                  </h3>
+                  {dailySessionsLocal.length === 0 ? (
+                    <p className="text-sm text-gray-500">{t("noSessionTrendData")}</p>
+                  ) : (
+                    <>
+                      <Sparkline data={dailySessionsLocal.slice(-30)} color="#6366f1" />
+                      <div className="mt-4 space-y-2">
+                        {dailySessionsLocal
+                          .slice(-7)
+                          .reverse()
+                          .map(({ date, count }) => {
+                            const maxD = Math.max(
+                              ...(dailySessionsLocal.length > 0
+                                ? dailySessionsLocal
+                                : [{ count: 1 }]
+                              ).map((d) => d.count)
+                            );
+                            return (
+                              <div key={date} className="flex items-center gap-3">
+                                <span className="text-[11px] text-gray-500 font-mono w-20 flex-shrink-0">
+                                  {date.slice(5)}
+                                </span>
+                                <div className="flex-1 bg-surface-3 rounded-full h-1.5">
+                                  <div
+                                    className="bg-accent h-1.5 rounded-full"
+                                    style={{
+                                      width: `${Math.round((count / Math.max(maxD, 1)) * 100)}%`,
+                                    }}
+                                  />
+                                </div>
+                                <span className="text-[11px] text-gray-500 w-4 text-right">
+                                  {count}
+                                </span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                      <p className="text-[11px] text-gray-600 mt-3">{t("last7Days")}</p>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }

@@ -14,7 +14,7 @@ const QUIPS: Record<QuipKey, string[]> = {
   // Pulses (event-driven, transient bubbles)
   session_done: [
     "a session just wrapped up! 🐾",
-    "a session finished — nice work! ✨",
+    "a session finished - nice work! ✨",
     "that session's all done 😺",
     "clean finish on that one 💜",
   ],
@@ -28,31 +28,31 @@ const QUIPS: Record<QuipKey, string[]> = {
     "a subagent just spawned! 🐾",
     "a little helper joined in 🤝",
     "a subagent's on the job 🚀",
-    "reinforcements — new subagent! 😺",
+    "reinforcements - new subagent! 😺",
   ],
   waiting: [
     "a session needs your input 👀",
     "a session is waiting on you ⏳",
     "a session paused for your reply 💬",
-    "your turn — a session's waiting 🐾",
+    "your turn - a session's waiting 🐾",
   ],
   error: [
     "uh oh, a session hit an error 😿",
-    "something broke — wanna peek? 🙀",
+    "something broke - wanna peek? 🙀",
     "a hook tripped on something ⚠️",
     "hiss… an error popped up 💢",
   ],
   run_done: [
     "your run just finished! 🐾",
     "the run's all wrapped up ✨",
-    "run complete — that's a wrap 😸",
+    "run complete - that's a wrap 😸",
     "all done with that run 💜",
   ],
   // Moods (steady-state flavor, used by the panel / idle bubbles)
   disconnected: [
     "lost the connection… 😴",
     "can't reach the server 📡",
-    "no signal — taking a nap 💤",
+    "no signal - taking a nap 💤",
   ],
   worried: ["that didn't look right 😟", "keeping an eye out 👀", "hmm, something's off 🫣"],
   stuck: [

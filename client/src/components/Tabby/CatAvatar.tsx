@@ -1,9 +1,9 @@
 /**
  * @file CatAvatar.tsx
- * @description Pure presentational SVG cat — Tabby. Given a mood it renders the
+ * @description Pure presentational SVG cat - Tabby. Given a mood it renders the
  *   matching expression (ears, eyes, cheeks, mouth, tail, paws) via a `data-mood`
  *   attribute that drives the CSS in tabby.css. When motion is allowed, the
- *   pupils track the cursor. No data access — fully testable / reusable in
+ *   pupils track the cursor. No data access - fully testable / reusable in
  *   isolation. Geometry tuned for max cuteness: big round head, oversized
  *   sparkly eyes, pink ear-insides + cheek blush, classic tabby forehead
  *   stripes, a fluffy tail, and little paws peeking at the bottom.
@@ -72,7 +72,7 @@ export function CatAvatar({ mood, reducedMotion, size = 60 }: CatAvatarProps) {
     };
 
     // Immediately aim at the last-known cursor (next frame, so layout is ready)
-    // — no waiting for the user to move the mouse first.
+    // - no waiting for the user to move the mouse first.
     let initRaf = 0;
     if (lastCursor) {
       const c = lastCursor;
@@ -108,7 +108,7 @@ export function CatAvatar({ mood, reducedMotion, size = 60 }: CatAvatarProps) {
       aria-label={`Tabby (${mood})`}
     >
       <defs>
-        {/* Soft top-lit gradient for the body/head — gives a rounded, plush feel. */}
+        {/* Soft top-lit gradient for the body/head - gives a rounded, plush feel. */}
         <radialGradient id="tabbyFur" cx="50%" cy="34%" r="72%">
           <stop offset="0%" stopColor="#5b5b86" />
           <stop offset="60%" stopColor="#43436a" />
@@ -123,7 +123,7 @@ export function CatAvatar({ mood, reducedMotion, size = 60 }: CatAvatarProps) {
       {/* soft glow halo */}
       <circle className="tabby-halo" cx="50" cy="56" r="33" />
 
-      {/* tail — fluffy curl to the right */}
+      {/* tail - fluffy curl to the right */}
       <path
         className="tabby-tail"
         d="M78 74 q24 4 19 -22 q-3 -14 -12 -11 q8 4 6 14 q-3 12 -16 9 z"
@@ -140,7 +140,7 @@ export function CatAvatar({ mood, reducedMotion, size = 60 }: CatAvatarProps) {
         <path className="tabby-toe" d="M59 96 v4 M62 96.5 v4 M65 96 v4" />
       </g>
 
-      {/* ears — rounded, with pink inner */}
+      {/* ears - rounded, with pink inner */}
       <g className="tabby-ears">
         <path className="tabby-ear" d="M30 33 Q20 8 44 24 Q38 28 34 33 Z" />
         <path className="tabby-ear-inner" d="M31 30 Q26 16 39 25 Q35 27 33 30 Z" />
@@ -148,7 +148,7 @@ export function CatAvatar({ mood, reducedMotion, size = 60 }: CatAvatarProps) {
         <path className="tabby-ear-inner" d="M69 30 Q74 16 61 25 Q65 27 67 30 Z" />
       </g>
 
-      {/* head — big and round */}
+      {/* head - big and round */}
       <ellipse className="tabby-head" cx="50" cy="49" rx="33" ry="30" />
 
       {/* classic tabby forehead stripes */}
@@ -164,13 +164,13 @@ export function CatAvatar({ mood, reducedMotion, size = 60 }: CatAvatarProps) {
         <ellipse cx="74" cy="57" rx="6.5" ry="4" />
       </g>
 
-      {/* eyes — open state (big + sparkly) */}
+      {/* eyes - open state (big + sparkly) */}
       <g className="tabby-eyes-open">
         <ellipse className="tabby-eye" cx="37" cy="50" rx="9.5" ry="11.5" />
         <ellipse className="tabby-eye" cx="63" cy="50" rx="9.5" ry="11.5" />
         {/* Outer group carries the eye-tracking translate; the inner group
             carries the blink (scaleY) animation. They MUST be separate
-            elements — a CSS animation on `transform` overrides an inline
+            elements - a CSS animation on `transform` overrides an inline
             `transform`, so putting both on one node makes the blink clobber
             the tracking (the original "eyes only track after a while" bug). */}
         <g className="tabby-pupils" style={{ transform: `translate(${pupil.x}px, ${pupil.y}px)` }}>
@@ -185,13 +185,13 @@ export function CatAvatar({ mood, reducedMotion, size = 60 }: CatAvatarProps) {
         </g>
       </g>
 
-      {/* eyes — happy (^ ^) */}
+      {/* eyes - happy (^ ^) */}
       <g className="tabby-eyes-happy">
         <path d="M29 52 q8 -10 16 0" />
         <path d="M55 52 q8 -10 16 0" />
       </g>
 
-      {/* eyes — closed (sleeping / offline) */}
+      {/* eyes - closed (sleeping / offline) */}
       <g className="tabby-eyes-closed">
         <path d="M29 51 q8 7 16 0" />
         <path d="M55 51 q8 7 16 0" />
@@ -203,7 +203,7 @@ export function CatAvatar({ mood, reducedMotion, size = 60 }: CatAvatarProps) {
         <path d="M71 39 L55 45" />
       </g>
 
-      {/* nose — tiny heart */}
+      {/* nose - tiny heart */}
       <path
         className="tabby-nose"
         d="M50 64 C47 60 43 62 45 65 C46 67 50 69 50 69 C50 69 54 67 55 65 C57 62 53 60 50 64 Z"

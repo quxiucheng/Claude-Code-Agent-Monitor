@@ -72,7 +72,7 @@ export function useTabbyBrain(): TabbyBrain {
     bubbleTimer.current = setTimeout(() => setBubble(null), BUBBLE_MS);
   }, []);
 
-  // Seed from the REST snapshot on mount so counts are accurate immediately —
+  // Seed from the REST snapshot on mount so counts are accurate immediately -
   // the brain otherwise only learns about sessions from WS deltas that arrive
   // after it mounts, showing "0 live" on a fresh load even when sessions exist.
   // Pull a generous page of non-finished sessions; live WS deltas refine it.

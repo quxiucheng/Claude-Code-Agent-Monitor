@@ -7,6 +7,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useCallback } from "react";
 import { Layout } from "./components/Layout";
+import { SplashScreen } from "./components/SplashScreen";
 import { Dashboard } from "./pages/Dashboard";
 import { KanbanBoard } from "./pages/KanbanBoard";
 import { Sessions } from "./pages/Sessions";
@@ -32,22 +33,25 @@ export default function App() {
   useNotifications();
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route element={<Layout wsConnected={connected} />}>
-          <Route index element={<Dashboard />} />
-          <Route path="kanban" element={<KanbanBoard />} />
-          <Route path="sessions" element={<Sessions />} />
-          <Route path="sessions/:id" element={<SessionDetail />} />
-          <Route path="activity" element={<ActivityFeed />} />
-          <Route path="analytics" element={<Analytics />} />
-          <Route path="workflows" element={<Workflows />} />
-          <Route path="cc-config" element={<CcConfig />} />
-          <Route path="run" element={<Run />} />
-          <Route path="settings" element={<Settings />} />
-          <Route path="*" element={<NotFound />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <>
+      <SplashScreen />
+      <BrowserRouter>
+        <Routes>
+          <Route element={<Layout wsConnected={connected} />}>
+            <Route index element={<Dashboard />} />
+            <Route path="kanban" element={<KanbanBoard />} />
+            <Route path="sessions" element={<Sessions />} />
+            <Route path="sessions/:id" element={<SessionDetail />} />
+            <Route path="activity" element={<ActivityFeed />} />
+            <Route path="analytics" element={<Analytics />} />
+            <Route path="workflows" element={<Workflows />} />
+            <Route path="cc-config" element={<CcConfig />} />
+            <Route path="run" element={<Run />} />
+            <Route path="settings" element={<Settings />} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </>
   );
 }

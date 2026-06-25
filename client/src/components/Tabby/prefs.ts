@@ -34,7 +34,7 @@ function writeBool(key: string, value: boolean): void {
   try {
     localStorage.setItem(key, String(value));
   } catch {
-    // Ignore storage failures (private mode, quota) — prefs are best-effort.
+    // Ignore storage failures (private mode, quota) - prefs are best-effort.
   }
   try {
     window.dispatchEvent(new CustomEvent(EVENT));
@@ -61,9 +61,9 @@ function writePos(pos: TabbyPos): void {
   try {
     localStorage.setItem(POS_KEY, JSON.stringify(pos));
   } catch {
-    // Ignore storage failures — position is best-effort.
+    // Ignore storage failures - position is best-effort.
   }
-  // Note: intentionally does NOT dispatch the prefs event — position changes
+  // Note: intentionally does NOT dispatch the prefs event - position changes
   // are local to the widget and shouldn't churn the Settings toggle listeners.
 }
 
