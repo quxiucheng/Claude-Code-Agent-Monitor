@@ -117,14 +117,14 @@ const TABS: TabDef[] = [
   { key: "skills", icon: Sparkles, i18nKey: "tabs.skills" },
   { key: "agents", icon: UserRound, i18nKey: "tabs.agents" },
   { key: "commands", icon: Slash, i18nKey: "tabs.commands" },
-  { key: "outputStyles", icon: Palette, i18nKey: "tabs.outputStyles" },
+  { key: "memory", icon: BookOpen, i18nKey: "tabs.memory" },
   { key: "plugins", icon: PlugZap, i18nKey: "tabs.plugins" },
   { key: "marketplaces", icon: Store, i18nKey: "tabs.marketplaces" },
   { key: "mcp", icon: Server, i18nKey: "tabs.mcp" },
   { key: "hooks", icon: Webhook, i18nKey: "tabs.hooks" },
   { key: "keybindings", icon: Keyboard, i18nKey: "tabs.keybindings" },
   { key: "settings", icon: SettingsIcon, i18nKey: "tabs.settings" },
-  { key: "memory", icon: BookOpen, i18nKey: "tabs.memory" },
+  { key: "outputStyles", icon: Palette, i18nKey: "tabs.outputStyles" },
 ];
 
 interface PageState {
