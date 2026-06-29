@@ -179,7 +179,7 @@ CREATE TABLE sessions (
 | `ended_at` | TEXT | YES | ISO 8601 timestamp on terminal transition |
 | `metadata` | TEXT | YES | JSON blob for extras (turn duration totals, thinking blocks, …) |
 | `updated_at` | TEXT | NO | Bumped on every event for staleness detection |
-| `awaiting_input_since` | TEXT | YES | ISO 8601 stamp set when the session is **Waiting** (Stop, SessionStart, permission Notification). NULL otherwise |
+| `awaiting_input_since` | TEXT | YES | ISO 8601 stamp set when the session is **Waiting** (Stop, SessionStart, permission Notification, or watchdog user-interrupt/Esc recovery). NULL otherwise |
 | `transcript_path` | TEXT | YES | Absolute path to the session's JSONL transcript. Written by `routes/hooks.js` on the first event that carries it (subsequent events no-op via a SQL guard) and read by the periodic compaction sweep — so the sweep touches only active session rows instead of scanning the entire `events` table for `json_extract(data,'$.transcript_path')`. Backfilled once from `events` by the `db.js` migration |
 
 **Constraints:**
@@ -193,6 +193,7 @@ stateDiagram-v2
     [*] --> waiting: SessionStart (status=active + awaiting_input_since)
     waiting --> active: UserPromptSubmit / PreToolUse / PostToolUse
     active --> waiting: Stop (non-error) / Permission Notification
+    active --> waiting: Esc cancel (watchdog: marker or idle timeout)
     active --> error: Stop (stop_reason=error)
     waiting --> completed: SessionEnd
     active --> completed: SessionEnd

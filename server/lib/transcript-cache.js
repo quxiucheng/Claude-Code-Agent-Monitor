@@ -16,6 +16,36 @@ const {
 
 const MAX_CACHE_ENTRIES = 200;
 
+// Marker text Claude Code writes into the transcript when a turn is cancelled
+// by the user (Esc). The synthetic entry is `type:"user"` and also carries an
+// `interruptedMessageId` field; we accept either signal so detection survives
+// minor format drift. No hook fires on interrupt, so this is the only on-disk
+// evidence the watchdog can use to un-stick a session left in "working".
+const INTERRUPT_RE = /\[Request interrupted by user/i;
+
+// True when the transcript's tail is a user-interrupt that was never followed
+// by real turn activity (a new prompt or model output). Both timestamps come
+// from Claude Code's clock, so the comparison is immune to the server/transcript
+// skew that breaks a sub-second pre-output Esc. `>=` so an interrupt that ties
+// the last activity (interrupt written in the same instant) still counts.
+function computePendingInterrupt(lastInterruptTs, lastTurnTs) {
+  if (!lastInterruptTs) return false;
+  if (!lastTurnTs) return true;
+  return lastInterruptTs >= lastTurnTs;
+}
+
+function hasInterruptText(message) {
+  if (!message || typeof message !== "object") return false;
+  const c = message.content;
+  if (typeof c === "string") return INTERRUPT_RE.test(c);
+  if (Array.isArray(c)) {
+    for (const block of c) {
+      if (block && typeof block.text === "string" && INTERRUPT_RE.test(block.text)) return true;
+    }
+  }
+  return false;
+}
+
 // Hard cap on the length of each per-entry growable array (turnDurations,
 // errors, compaction.entries, usageExtras.{service_tiers,speeds,inference_geos}).
 // Past this point we keep the *tail* — the most recent N items — so the
@@ -95,6 +125,9 @@ class TranscriptCache {
             latestModel: merged.latestModel || null,
             customTitle: merged.customTitle || null,
             aiTitle: merged.aiTitle || null,
+            lastInterruptTs: merged.lastInterruptTs || null,
+            lastTurnTs: merged.lastTurnTs || null,
+            pendingInterrupt: computePendingInterrupt(merged.lastInterruptTs, merged.lastTurnTs),
           };
           if (
             !result.tokensByModel &&
@@ -105,7 +138,9 @@ class TranscriptCache {
             !result.usageExtras &&
             !result.latestModel &&
             !result.customTitle &&
-            !result.aiTitle
+            !result.aiTitle &&
+            !result.lastInterruptTs &&
+            !result.lastTurnTs
           ) {
             this._set(key, {
               mtimeMs: stat.mtimeMs,
@@ -292,6 +327,16 @@ class TranscriptCache {
       // time — custom titles take precedence over ai titles.
       customTitle: null,
       aiTitle: null,
+      // Timestamps (ISO 8601, all from Claude Code's clock) used to recover a
+      // turn cancelled with no hook. `lastInterruptTs` is the most recent
+      // user-interrupt (Esc) entry; `lastTurnTs` is the most recent real turn
+      // activity (assistant output or a genuine user prompt). Comparing the
+      // two — both same-clock — tells us whether the transcript TAIL is an
+      // unrecovered interrupt. This holds even when Esc is pressed before any
+      // output (a sub-second interrupt), which a server-vs-transcript clock
+      // comparison cannot, since the UserPromptSubmit event is stamped later.
+      lastInterruptTs: null,
+      lastTurnTs: null,
     };
   }
 
@@ -317,6 +362,26 @@ class TranscriptCache {
         state.aiTitle = entry.aiTitle;
       }
       return;
+    }
+
+    // User-interrupt (Esc) marker. No hook fires for cancellation, so capture
+    // the timestamp here for the watchdog to move a stuck session back to
+    // waiting-for-input. The entry carries no usage/model, so return early.
+    if (
+      entry.type === "user" &&
+      (entry.interruptedMessageId != null || hasInterruptText(entry.message))
+    ) {
+      if (entry.timestamp) state.lastInterruptTs = entry.timestamp;
+      return;
+    }
+
+    // Real turn activity — assistant output or a genuine (non-interrupt) user
+    // prompt. Tracking its latest timestamp lets _finalizeState decide whether
+    // a later interrupt was superseded by the user resuming (new prompt /
+    // model output) or is still the unrecovered tail of the transcript.
+    if ((entry.type === "assistant" || entry.type === "user") && entry.timestamp) {
+      if (!state.lastTurnTs || entry.timestamp > state.lastTurnTs)
+        state.lastTurnTs = entry.timestamp;
     }
 
     if (entry.isCompactSummary) {
@@ -416,7 +481,9 @@ class TranscriptCache {
       !hasUsageExtras &&
       !state.latestModel &&
       !state.customTitle &&
-      !state.aiTitle
+      !state.aiTitle &&
+      !state.lastInterruptTs &&
+      !state.lastTurnTs
     ) {
       return null;
     }
@@ -445,6 +512,9 @@ class TranscriptCache {
       latestModel: state.latestModel,
       customTitle: state.customTitle,
       aiTitle: state.aiTitle,
+      lastInterruptTs: state.lastInterruptTs,
+      lastTurnTs: state.lastTurnTs,
+      pendingInterrupt: computePendingInterrupt(state.lastInterruptTs, state.lastTurnTs),
     };
   }
 
@@ -549,6 +619,13 @@ class TranscriptCache {
       (incremental && incremental.customTitle) || cached.result?.customTitle || null;
     const aiTitle = (incremental && incremental.aiTitle) || cached.result?.aiTitle || null;
 
+    // Append-only: a newer interrupt / turn-activity timestamp in the
+    // incremental chunk supersedes the cached one, otherwise keep what was
+    // already known. pendingInterrupt is derived from the two by the caller.
+    const lastInterruptTs =
+      (incremental && incremental.lastInterruptTs) || cached.result?.lastInterruptTs || null;
+    const lastTurnTs = (incremental && incremental.lastTurnTs) || cached.result?.lastTurnTs || null;
+
     return {
       tokensByModel,
       compaction,
@@ -559,6 +636,8 @@ class TranscriptCache {
       latestModel,
       customTitle,
       aiTitle,
+      lastInterruptTs,
+      lastTurnTs,
     };
   }
 

@@ -454,4 +454,216 @@ describe("TranscriptCache", () => {
     const compactions = cache.extractCompactions("/nonexistent.jsonl");
     assert.deepStrictEqual(compactions, []);
   });
+
+  it("should capture lastInterruptTs from an Esc-interrupt entry (text marker)", () => {
+    const file = path.join(tmpDir, "session.jsonl");
+    writeJsonl(file, [
+      { message: { model: "m1", usage: { input_tokens: 10, output_tokens: 5 } } },
+      {
+        type: "user",
+        message: {
+          role: "user",
+          content: [{ type: "text", text: "[Request interrupted by user]" }],
+        },
+        timestamp: "2026-06-28T12:00:00.000Z",
+      },
+    ]);
+
+    const cache = new TranscriptCache();
+    const result = cache.extract(file);
+    assert.strictEqual(result.lastInterruptTs, "2026-06-28T12:00:00.000Z");
+    assert.strictEqual(result.pendingInterrupt, true);
+  });
+
+  it("should capture lastInterruptTs via the interruptedMessageId field", () => {
+    const file = path.join(tmpDir, "session.jsonl");
+    writeJsonl(file, [
+      {
+        type: "user",
+        interruptedMessageId: "msg_123",
+        message: {
+          role: "user",
+          content: [{ type: "text", text: "[Request interrupted by user for tool use]" }],
+        },
+        timestamp: "2026-06-28T13:30:00.000Z",
+      },
+    ]);
+
+    const cache = new TranscriptCache();
+    const result = cache.extract(file);
+    assert.strictEqual(result.lastInterruptTs, "2026-06-28T13:30:00.000Z");
+    assert.strictEqual(result.pendingInterrupt, true);
+  });
+
+  it("should flag pendingInterrupt for an Esc pressed BEFORE any output (prompt then interrupt)", () => {
+    // The hard case: user submits, then cancels before the model emits anything.
+    // Transcript order is [user prompt, interrupt] — no assistant entry between.
+    const file = path.join(tmpDir, "session.jsonl");
+    writeJsonl(file, [
+      {
+        type: "user",
+        message: { role: "user", content: [{ type: "text", text: "do a big refactor" }] },
+        timestamp: "2026-06-28T15:00:00.000Z",
+      },
+      {
+        type: "user",
+        interruptedMessageId: "m",
+        message: {
+          role: "user",
+          content: [{ type: "text", text: "[Request interrupted by user]" }],
+        },
+        timestamp: "2026-06-28T15:00:00.001Z", // 1ms later — the real-world skew case
+      },
+    ]);
+
+    const cache = new TranscriptCache();
+    const result = cache.extract(file);
+    assert.strictEqual(result.pendingInterrupt, true, "pre-output Esc must still be detected");
+  });
+
+  it("should flag pendingInterrupt when Esc follows assistant output", () => {
+    const file = path.join(tmpDir, "session.jsonl");
+    writeJsonl(file, [
+      {
+        type: "assistant",
+        message: { model: "m1", usage: { input_tokens: 10, output_tokens: 5 } },
+        timestamp: "2026-06-28T16:00:00.000Z",
+      },
+      {
+        type: "user",
+        interruptedMessageId: "m",
+        message: {
+          role: "user",
+          content: [{ type: "text", text: "[Request interrupted by user]" }],
+        },
+        timestamp: "2026-06-28T16:00:05.000Z",
+      },
+    ]);
+
+    const cache = new TranscriptCache();
+    const result = cache.extract(file);
+    assert.strictEqual(result.pendingInterrupt, true);
+  });
+
+  it("should NOT flag pendingInterrupt when the user resumed after the interrupt", () => {
+    // [interrupt, new prompt] — the user came back and submitted again.
+    const file = path.join(tmpDir, "session.jsonl");
+    writeJsonl(file, [
+      {
+        type: "user",
+        interruptedMessageId: "m",
+        message: {
+          role: "user",
+          content: [{ type: "text", text: "[Request interrupted by user]" }],
+        },
+        timestamp: "2026-06-28T17:00:00.000Z",
+      },
+      {
+        type: "user",
+        message: { role: "user", content: [{ type: "text", text: "actually do this instead" }] },
+        timestamp: "2026-06-28T17:00:30.000Z",
+      },
+    ]);
+
+    const cache = new TranscriptCache();
+    const result = cache.extract(file);
+    assert.strictEqual(result.lastInterruptTs, "2026-06-28T17:00:00.000Z");
+    assert.strictEqual(result.pendingInterrupt, false, "resuming with a new prompt clears it");
+  });
+
+  it("should keep the latest interrupt timestamp (append-only, last wins)", () => {
+    const file = path.join(tmpDir, "session.jsonl");
+    writeJsonl(file, [
+      {
+        type: "user",
+        interruptedMessageId: "a",
+        message: {
+          role: "user",
+          content: [{ type: "text", text: "[Request interrupted by user]" }],
+        },
+        timestamp: "2026-06-28T10:00:00.000Z",
+      },
+      {
+        type: "user",
+        interruptedMessageId: "b",
+        message: {
+          role: "user",
+          content: [{ type: "text", text: "[Request interrupted by user]" }],
+        },
+        timestamp: "2026-06-28T11:00:00.000Z",
+      },
+    ]);
+
+    const cache = new TranscriptCache();
+    const result = cache.extract(file);
+    assert.strictEqual(result.lastInterruptTs, "2026-06-28T11:00:00.000Z");
+    assert.strictEqual(result.pendingInterrupt, true);
+  });
+
+  it("should carry a newer interrupt across an incremental read", () => {
+    const file = path.join(tmpDir, "session.jsonl");
+    writeJsonl(file, [{ message: { model: "m1", usage: { input_tokens: 10, output_tokens: 5 } } }]);
+
+    const cache = new TranscriptCache();
+    const first = cache.extract(file);
+    assert.strictEqual(first.lastInterruptTs, null);
+    assert.strictEqual(first.pendingInterrupt, false);
+
+    // Append an interrupt entry → incremental read path must surface it.
+    fs.appendFileSync(
+      file,
+      JSON.stringify({
+        type: "user",
+        interruptedMessageId: "x",
+        message: {
+          role: "user",
+          content: [{ type: "text", text: "[Request interrupted by user]" }],
+        },
+        timestamp: "2026-06-28T14:00:00.000Z",
+      }) + "\n"
+    );
+    const second = cache.extract(file);
+    assert.strictEqual(second.lastInterruptTs, "2026-06-28T14:00:00.000Z");
+    assert.strictEqual(second.pendingInterrupt, true);
+  });
+
+  it("should clear pendingInterrupt across an incremental read when the user resumes", () => {
+    // First read sees a tail interrupt; a later prompt appended in the next
+    // chunk must flip pendingInterrupt back to false via the merge path.
+    const file = path.join(tmpDir, "session.jsonl");
+    writeJsonl(file, [
+      {
+        type: "user",
+        interruptedMessageId: "x",
+        message: {
+          role: "user",
+          content: [{ type: "text", text: "[Request interrupted by user]" }],
+        },
+        timestamp: "2026-06-28T18:00:00.000Z",
+      },
+    ]);
+
+    const cache = new TranscriptCache();
+    assert.strictEqual(cache.extract(file).pendingInterrupt, true);
+
+    fs.appendFileSync(
+      file,
+      JSON.stringify({
+        type: "user",
+        message: { role: "user", content: [{ type: "text", text: "resume" }] },
+        timestamp: "2026-06-28T18:01:00.000Z",
+      }) + "\n"
+    );
+    assert.strictEqual(cache.extract(file).pendingInterrupt, false, "incremental resume clears it");
+  });
+
+  it("should leave lastInterruptTs null and pendingInterrupt false when there is no interrupt", () => {
+    const file = path.join(tmpDir, "session.jsonl");
+    writeJsonl(file, [{ message: { model: "m1", usage: { input_tokens: 10, output_tokens: 5 } } }]);
+
+    const cache = new TranscriptCache();
+    const result = cache.extract(file);
+    assert.strictEqual(result.lastInterruptTs, null);
+    assert.strictEqual(result.pendingInterrupt, false);
+  });
 });

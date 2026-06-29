@@ -868,6 +868,7 @@ stateDiagram-v2
     waiting --> active: UserPromptSubmit / PreToolUse / PostToolUse
     active --> waiting: Stop (non-error, flag re-stamped)
     active --> waiting: Permission Notification (agent → waiting)
+    active --> waiting: Esc cancel (watchdog: marker or idle timeout)
     active --> error: Stop (stop_reason=error)
     active --> error: API error detected (watchdog)
     waiting --> error: API error detected (watchdog)
@@ -894,6 +895,7 @@ stateDiagram-v2
     working --> working: PostToolUse (tool completed)
     working --> waiting: Stop (non-error)
     working --> waiting: Notification (input prompt)
+    working --> waiting: Esc cancel (watchdog: marker or idle timeout)
     waiting --> error: Stop with error
     working --> error: Stop with error
     waiting --> error: API error detected (watchdog)
@@ -1020,6 +1022,15 @@ The server runs a background error detection timer every 15 seconds that proacti
 4. **Error marking** — marks sessions and agents as `error` when API errors are found in transcripts
 
 This catches cases where the Claude CLI doesn't fire a hook after an API error (e.g., 401 auth failures where the CLI just shows the error message and waits for user input).
+
+### User-Interrupt (Esc) Recovery
+
+Cancelling a turn with `Esc` fires **no Claude Code hook** (a documented CLI limitation), so the `UserPromptSubmit` that promoted the main agent to `working` is never undone — the session would otherwise sit in `working` forever. The same 15 s watchdog recovers it, with two detection paths:
+
+1. **Transcript marker** — when the cancel happens *after* some output, Claude Code writes a `[Request interrupted by user]` entry (carrying an `interruptedMessageId`) to the transcript. `TranscriptCache` exposes `pendingInterrupt`, computed purely from transcript ordering — the latest interrupt timestamp vs the latest real turn activity (assistant output or a genuine user prompt), both on Claude Code's clock. This is deliberately **not** compared against the session's last hook event: those are different clocks, and for a sub-second cancel the `UserPromptSubmit` event is stamped *after* the transcript interrupt, which is exactly what left such sessions stuck. Recovers within ~15 s.
+2. **Idle-working timeout** — when Esc is pressed *before any output*, Claude Code writes **no marker at all**; the only signal is silence. When the main agent has been `working` with `current_tool` null and **neither a hook event nor the transcript mtime** has advanced for `DASHBOARD_WORKING_IDLE_SECONDS` (default `120`), the turn is treated as dead. Streaming output (transcript still growing) and in-flight tool calls are exempt by these guards; a rare false flip self-heals on the next real hook.
+
+Both paths move the session to **Waiting** (main agent → `waiting`, `awaiting_input_since` stamped) — the same state a normal `Stop` produces — and log an `Interrupted` event. If the user resumes (a new prompt lands in the transcript), `pendingInterrupt` flips back to false and the fresh hook keeps the session non-stale.
 
 ### API Error → Error State Flow
 

@@ -54,6 +54,36 @@ function clearAwaitingInput(sessionId, mainAgentId, broadcastUpdates) {
   }
 }
 
+// Land a session that was cancelled with no hook (Esc) in the same
+// waiting + awaiting-input state a normal Stop produces, and log a timeline
+// event. Used by both watchdog recovery paths: the transcript-marker path
+// (interrupt after some output) and the idle-timeout path (interrupt before
+// any output, which leaves no marker at all). Caller is responsible for the
+// gating (agent must be "working" and not already awaiting).
+function recoverInterruptedSession(sessionId, fullSess, mainAgentId, reasonSuffix) {
+  const ts = new Date().toISOString();
+  if (mainAgentId) {
+    stmts.updateAgent.run(null, "waiting", null, null, null, null, mainAgentId);
+  }
+  stmts.setSessionAwaitingInput.run(ts, sessionId);
+  if (mainAgentId) stmts.setAgentAwaitingInput.run(ts, mainAgentId);
+
+  const label = fullSess?.name || `Session ${sessionId.slice(0, 8)}`;
+  const summary = reasonSuffix ? `${label} - ${reasonSuffix}` : `${label} - interrupted by user`;
+  stmts.insertEvent.run(sessionId, mainAgentId, "Interrupted", null, summary, null);
+
+  broadcast("session_updated", stmts.getSession.get(sessionId));
+  if (mainAgentId) broadcast("agent_updated", stmts.getAgent.get(mainAgentId));
+  broadcast("new_event", {
+    session_id: sessionId,
+    agent_id: mainAgentId,
+    event_type: "Interrupted",
+    tool_name: null,
+    summary,
+    created_at: ts,
+  });
+}
+
 function ensureSession(sessionId, data) {
   let session = stmts.getSession.get(sessionId);
   if (!session) {
@@ -888,6 +918,19 @@ router.post("/event", (req, res) => {
 const WATCHDOG_INTERVAL_MS = 15_000;
 const STALE_THRESHOLD_MS = 10_000; // only check sessions idle for >10s
 
+// Idle-working timeout for the no-marker interrupt case (Esc pressed before the
+// model emits anything → Claude Code writes no interrupt entry and fires no
+// hook). When the main agent has been "working" with no tool in flight and
+// NEITHER a hook event NOR the transcript has advanced for this long, we treat
+// the turn as dead and move the session to waiting-for-input. A genuinely busy
+// turn keeps one of those moving (PreToolUse/PostToolUse hooks, or streamed
+// output growing the transcript) so it is exempt; a rare false positive
+// self-heals on the next real hook. Configurable via DASHBOARD_WORKING_IDLE_SECONDS.
+const WORKING_IDLE_MS = (() => {
+  const raw = parseInt(process.env.DASHBOARD_WORKING_IDLE_SECONDS, 10);
+  return Number.isFinite(raw) && raw > 0 ? raw * 1000 : 120_000; // default 2 min
+})();
+
 function watchdogCheck() {
   try {
     const os = require("os");
@@ -935,7 +978,65 @@ function watchdogCheck() {
       const fullSess = stmts.getSession.get(sess.id);
       if (fullSess) syncSessionName(fullSess, result);
 
-      if (!result.errors || result.errors.length === 0) continue;
+      const mainAgent = db
+        .prepare("SELECT * FROM agents WHERE session_id = ? AND type = 'main' LIMIT 1")
+        .get(sess.id);
+      const mainAgentId = mainAgent?.id ?? null;
+
+      // User-interrupt (Esc) recovery. No hook fires when a turn is cancelled,
+      // so UserPromptSubmit's "working" promotion is never undone and the main
+      // agent is stuck working forever. `pendingInterrupt` is derived purely
+      // from transcript ordering (latest interrupt vs latest real turn
+      // activity, both on Claude Code's clock): true when the transcript tail
+      // is an unrecovered interrupt. We deliberately do NOT compare the
+      // interrupt time to the session's last hook event — those use different
+      // clocks, and for an Esc pressed BEFORE any output the UserPromptSubmit
+      // event is stamped AFTER the interrupt, which is exactly the case that
+      // left sessions stuck "working" forever. If the user resumes, a new
+      // prompt lands in the transcript and pendingInterrupt flips back to false
+      // (and the fresh hook keeps the session non-stale meanwhile). Land the
+      // session in the same waiting + awaiting-input state a normal Stop would.
+      if (
+        result.pendingInterrupt &&
+        mainAgent &&
+        mainAgent.status === "working" &&
+        !mainAgent.awaiting_input_since
+      ) {
+        recoverInterruptedSession(sess.id, fullSess, mainAgentId, "interrupted by user");
+        // Handled this tick. A genuine error (rare alongside an interrupt) is
+        // still caught on a later tick once the agent is no longer "working".
+        continue;
+      }
+
+      if (!result.errors || result.errors.length === 0) {
+        // No transcript errors. Fall back to the no-marker interrupt check:
+        // the "submit a prompt, then Esc before any output" case writes neither
+        // a hook nor a transcript marker, so the only evidence is silence. If
+        // the main agent is "working" with no tool in flight and neither a hook
+        // event nor the transcript has advanced for WORKING_IDLE_MS, treat the
+        // turn as dead and move the session to waiting-for-input. The mtime
+        // guard means a streaming/long-output turn (transcript still growing)
+        // is exempt; the current_tool guard exempts a long-running tool call.
+        if (
+          mainAgent &&
+          mainAgent.status === "working" &&
+          !mainAgent.current_tool &&
+          !mainAgent.awaiting_input_since
+        ) {
+          let mtimeMs = 0;
+          try {
+            mtimeMs = fs.statSync(tPath).mtimeMs;
+          } catch {
+            /* transcript vanished — fall through with mtimeMs = 0 */
+          }
+          const hookMs = Date.parse(sess.last_event) || 0;
+          const idleMs = Date.now() - Math.max(mtimeMs, hookMs);
+          if (idleMs > WORKING_IDLE_MS) {
+            recoverInterruptedSession(sess.id, fullSess, mainAgentId, "interrupted by user");
+          }
+        }
+        continue;
+      }
 
       // Check if we already recorded these errors
       const existingErrorCount = db
@@ -943,12 +1044,6 @@ function watchdogCheck() {
           "SELECT COUNT(*) as cnt FROM events WHERE session_id = ? AND event_type = 'APIError'"
         )
         .get(sess.id).cnt;
-
-      // Record any new errors
-      const mainAgent = db
-        .prepare("SELECT * FROM agents WHERE session_id = ? AND type = 'main' LIMIT 1")
-        .get(sess.id);
-      const mainAgentId = mainAgent?.id ?? null;
 
       if (existingErrorCount < result.errors.length) {
         // Batch-fetch existing error summaries to avoid per-error SELECT

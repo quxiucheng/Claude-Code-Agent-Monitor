@@ -359,6 +359,8 @@ Triggered when Claude finishes a turn (NOT when the session is closed).
 - Error (`stop_reason="error"`): drop `awaiting_input_since`, mark the session `error`
 - Background subagents continue running — they complete individually via `SubagentStop`, never via `Stop`
 
+> **Note:** `Stop` does **not** fire when the user cancels a turn with `Esc` — interrupts emit no hook at all. The dashboard instead recovers cancelled turns from the transcript (see [User interrupts (Esc)](#user-interrupts-esc--no-hook-fires)).
+
 ---
 
 ### 6. SubagentStop
@@ -638,6 +640,15 @@ On every event that carries a `transcript_path`, the shared `TranscriptCache` re
 - **Tokens / cost** — usage is accumulated per model bucket (compaction-aware baselines).
 - **Model** — the most recent assistant entry's model keeps `sessions.model` current after a `/model` switch.
 - **Name** — the session title is read from the transcript: the `custom-title` line (`/rename`, `claude -n`, picker `Ctrl+R`) always wins, otherwise the auto-generated `ai-title` fills a placeholder/auto name (so a user-chosen name is never clobbered). `sessions.name` is updated via a no-op-guarded statement and a `session_updated` broadcast fires only on a real change, so the dashboard reflects renames in real time. The 15 s error-detection watchdog runs the same sync for active sessions left idle right after a `/rename`.
+
+### User interrupts (Esc) — no hook fires
+
+Cancelling a turn with `Esc` fires **no hook at all** (a documented Claude Code limitation — there is no `Stop`, `Notification`, or other event on interrupt). Since `UserPromptSubmit` has already promoted the main agent to `working`, an un-handled cancel would leave the session stuck in `working` indefinitely. The dashboard recovers it from the transcript, via the same 15 s watchdog, two ways:
+
+1. **Marker path** — when the cancel happens *after* some output, Claude Code appends a `[Request interrupted by user]` user entry (with an `interruptedMessageId`). `TranscriptCache` reports `pendingInterrupt`, computed from transcript ordering alone: the latest interrupt timestamp vs the latest real turn activity, both on Claude Code's clock. (It is **not** compared against the session's last hook event — those clocks differ, and for a sub-second cancel the `UserPromptSubmit` event is recorded *after* the transcript interrupt, the precise case that used to stay stuck.) The session moves to **Waiting** within ~15 s.
+2. **Idle-working timeout** — when Esc is pressed *before any output*, Claude Code writes **no marker**; the only evidence is silence. When the main agent has been `working` with `current_tool` null and **neither a hook event nor the transcript mtime** has advanced for `DASHBOARD_WORKING_IDLE_SECONDS` (default `120`), the turn is treated as dead. A streaming/long-output turn (transcript still growing) and an in-flight tool call are exempt by those guards; a rare false flip self-heals on the next real hook.
+
+Both paths land the session in **Waiting** (main agent → `waiting`, `awaiting_input_since` stamped — identical to a non-error `Stop`) and log an `Interrupted` event. A resume (new prompt in the transcript) clears `pendingInterrupt` and the fresh hook keeps the session non-stale.
 
 ---
 

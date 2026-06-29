@@ -1606,6 +1606,13 @@
                   </td>
                 </tr>
                 <tr>
+                  <td><code>Interrupted</code></td>
+                  <td>Turn cancelled by the user (<code>Esc</code>)</td>
+                  <td>
+                    Synthesized by the watchdog because pressing <code>Esc</code> fires no hook. Recovered either from the transcript <code>[Request interrupted by user]</code> marker (flagged as <code>pendingInterrupt</code>) or, when <code>Esc</code> preceded any output and left no marker, from the idle-working timeout (<code>DASHBOARD_WORKING_IDLE_SECONDS</code>, default 120). Moves the session to <strong>Waiting</strong> — the same state a normal <code>Stop</code> produces.
+                  </td>
+                </tr>
+                <tr>
                   <td><code>TurnDuration</code></td>
                   <td>Per-turn timing recorded</td>
                   <td>
@@ -1850,6 +1857,13 @@ npm run mcp:start:repl         # interactive CLI with tab completion</code></pre
                   <td><code>DASHBOARD_DB_PATH</code></td>
                   <td><code>data/dashboard.db</code></td>
                   <td>Path to the SQLite database file</td>
+                </tr>
+                <tr>
+                  <td><code>DASHBOARD_WORKING_IDLE_SECONDS</code></td>
+                  <td><code>120</code></td>
+                  <td>
+                    Idle-working timeout the watchdog uses to recover an <code>Esc</code> cancel that left no transcript marker
+                  </td>
                 </tr>
                 <tr>
                   <td><code>NODE_ENV</code></td>
@@ -2199,6 +2213,7 @@ npm run mcp:start:repl         # interactive CLI with tab completion</code></pre
                 working --> working: PostToolUse (tool completed)
                 working --> waiting: Stop (non-error)
                 working --> waiting: Notification (input prompt)
+                working --> waiting: Esc cancel (watchdog: marker or idle timeout)
                 waiting --> error: Stop with error
                 working --> error: Stop with error
                 waiting --> error: API error (watchdog)
@@ -2213,7 +2228,7 @@ npm run mcp:start:repl         # interactive CLI with tab completion</code></pre
                 end note
             </div>
             <p class="diagram-label">
-              Agent status transitions driven by hook events. <code>waiting</code> is a real persisted status — agents start as <code>waiting</code> and return to it after each turn. Error recovery requires active user retry (<code>UserPromptSubmit</code> or <code>PreToolUse</code>). A background watchdog detects API errors in transcripts every 15 s.
+              Agent status transitions driven by hook events. <code>waiting</code> is a real persisted status — agents start as <code>waiting</code> and return to it after each turn. Error recovery requires active user retry (<code>UserPromptSubmit</code> or <code>PreToolUse</code>). A background watchdog detects API errors in transcripts every 15 s. The same watchdog also recovers <code>Esc</code>-cancelled turns — via either the transcript <code>[Request interrupted by user]</code> marker or the idle-working timeout when <code>Esc</code> preceded any output — and moves the session to Waiting.
             </p>
           </div>
 
@@ -2226,6 +2241,7 @@ npm run mcp:start:repl         # interactive CLI with tab completion</code></pre
                 waiting --> active: UserPromptSubmit / PreToolUse / PostToolUse
                 active --> waiting: Stop (non-error, flag re-stamped)
                 active --> waiting: Permission Notification (agent → waiting)
+                active --> waiting: Esc cancel (watchdog: marker or idle timeout)
                 active --> error: Stop (stop_reason=error)
                 active --> error: API error (watchdog)
                 waiting --> error: API error (watchdog)
@@ -2243,7 +2259,7 @@ npm run mcp:start:repl         # interactive CLI with tab completion</code></pre
                 abandoned --> [*]
             </div>
             <p class="diagram-label">
-              Session status lifecycle. <code>waiting</code> is a UI overlay — persisted as <code>active</code> with <code>awaiting_input_since</code> set. <code>SessionEnd</code> preserves error state. Error recovery requires <code>UserPromptSubmit</code> or <code>PreToolUse</code>.
+              Session status lifecycle. <code>waiting</code> is a UI overlay — persisted as <code>active</code> with <code>awaiting_input_since</code> set. <code>SessionEnd</code> preserves error state. Error recovery requires <code>UserPromptSubmit</code> or <code>PreToolUse</code>. The watchdog also recovers <code>Esc</code>-cancelled turns (marker or idle-timeout path) and moves the session to Waiting.
             </p>
           </div>
         </section>
@@ -6022,7 +6038,7 @@ npm run install-hooks</code></pre>
     <!-- Body-content translations (zh/vi) — must load before script.js so the
          i18n engine sees window.__WIKI_CONTENT_I18N. Both are deferred, so they
          run in document order. -->
-    <script src="i18n-content.js?v=14" defer></script>
+    <script src="i18n-content.js?v=15" defer></script>
     <script src="script.js?v=29" defer></script>
     <script>
       (function () {

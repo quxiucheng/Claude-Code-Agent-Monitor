@@ -146,6 +146,9 @@ window.__WIKI_CONTENT_I18N = {
     "API error detected in transcript": "在会话记录中检测到 API 错误",
     "Extracted from JSONL during history import, real-time transcript scanning, or the error detection watchdog. Captures quota limits, rate limits, auth failures, and other API errors. <strong>Immediately marks sessions and agents as error</strong> — previously recorded as events without changing status.":
       "在历史导入、实时会话记录扫描或错误检测看门狗过程中从 JSONL 中提取。捕获配额上限、速率限制、认证失败及其他 API 错误。<strong>立即将会话和 agent 标记为错误</strong>——此前仅记录为事件而不改变状态。",
+    "Turn cancelled by the user (<code>Esc</code>)": "用户取消了该轮次（<code>Esc</code>）",
+    "Synthesized by the watchdog because pressing <code>Esc</code> fires no hook. Recovered either from the transcript <code>[Request interrupted by user]</code> marker (flagged as <code>pendingInterrupt</code>) or, when <code>Esc</code> preceded any output and left no marker, from the idle-working timeout (<code>DASHBOARD_WORKING_IDLE_SECONDS</code>, default 120). Moves the session to <strong>Waiting</strong> — the same state a normal <code>Stop</code> produces.":
+      "由看门狗合成，因为按下 <code>Esc</code> 不会触发任何 hook。要么从会话记录中的 <code>[Request interrupted by user]</code> 标记恢复（标记为 <code>pendingInterrupt</code>），要么在 <code>Esc</code> 发生于任何输出之前且未留下标记时，从空闲工作超时恢复（<code>DASHBOARD_WORKING_IDLE_SECONDS</code>，默认 120）。将会话置为 <strong>Waiting</strong>——与正常 <code>Stop</code> 产生的状态相同。",
     "Per-turn timing recorded": "记录每个轮次的计时",
     "Extracted from JSONL turn boundaries. Records the duration of each assistant turn for latency analysis.":
       "从 JSONL 的轮次边界中提取。记录每个助手轮次的持续时间，用于延迟分析。",
@@ -198,6 +201,8 @@ window.__WIKI_CONTENT_I18N = {
       "MCP HTTP+SSE 服务器的端口（仅当 <code>MCP_TRANSPORT=http</code> 时）",
     "Bind address for the MCP HTTP server": "MCP HTTP 服务器的绑定地址",
     "Path to the SQLite database file": "SQLite 数据库文件的路径",
+    "Idle-working timeout the watchdog uses to recover an <code>Esc</code> cancel that left no transcript marker":
+      "看门狗用于恢复未在会话记录中留下标记的 <code>Esc</code> 取消的空闲工作超时",
     "Set to <code>production</code> to serve built client from <code>client/dist/</code>":
       "设为 <code>production</code> 可从 <code>client/dist/</code> 提供已构建的客户端",
     "The server writes the following to <code>~/.claude/settings.json</code> on every startup:":
@@ -277,10 +282,10 @@ window.__WIKI_CONTENT_I18N = {
       "核心仪表盘遥测由三个进程组成（Claude 钩子源、仪表盘服务器、浏览器 UI）。当启用本地 MCP 辅助进程时，它会通过 stdio、HTTP+SSE 或交互式 REPL 传输方式集成到同一个仪表盘 API。",
     "Full system architecture — Claude Code process → Hook Layer → Server → Browser":
       "完整系统架构 — Claude Code 进程 → 钩子层 → 服务器 → 浏览器",
-    "Agent status transitions driven by hook events. <code>waiting</code> is a real persisted status — agents start as <code>waiting</code> and return to it after each turn. Error recovery requires active user retry (<code>UserPromptSubmit</code> or <code>PreToolUse</code>). A background watchdog detects API errors in transcripts every 15 s.":
-      "由钩子事件驱动的 agent 状态转换。<code>waiting</code> 是一个真实的持久化状态 — agent 以 <code>waiting</code> 状态开始，并在每一轮之后返回该状态。错误恢复需要用户主动重试（<code>UserPromptSubmit</code> 或 <code>PreToolUse</code>）。后台看门狗每隔 15 s 在记录中检测 API 错误。",
-    "Session status lifecycle. <code>waiting</code> is a UI overlay — persisted as <code>active</code> with <code>awaiting_input_since</code> set. <code>SessionEnd</code> preserves error state. Error recovery requires <code>UserPromptSubmit</code> or <code>PreToolUse</code>.":
-      "会话状态生命周期。<code>waiting</code> 是一个 UI 叠加层 — 实际持久化为 <code>active</code> 并设置了 <code>awaiting_input_since</code>。<code>SessionEnd</code> 会保留错误状态。错误恢复需要 <code>UserPromptSubmit</code> 或 <code>PreToolUse</code>。",
+    "Agent status transitions driven by hook events. <code>waiting</code> is a real persisted status — agents start as <code>waiting</code> and return to it after each turn. Error recovery requires active user retry (<code>UserPromptSubmit</code> or <code>PreToolUse</code>). A background watchdog detects API errors in transcripts every 15 s. The same watchdog also recovers <code>Esc</code>-cancelled turns — via either the transcript <code>[Request interrupted by user]</code> marker or the idle-working timeout when <code>Esc</code> preceded any output — and moves the session to Waiting.":
+      "由钩子事件驱动的 agent 状态转换。<code>waiting</code> 是一个真实的持久化状态 — agent 以 <code>waiting</code> 状态开始，并在每一轮之后返回该状态。错误恢复需要用户主动重试（<code>UserPromptSubmit</code> 或 <code>PreToolUse</code>）。后台看门狗每隔 15 s 在记录中检测 API 错误。同一个看门狗还会恢复被 <code>Esc</code> 取消的轮次——通过会话记录中的 <code>[Request interrupted by user]</code> 标记，或在 <code>Esc</code> 发生于任何输出之前时通过空闲工作超时——并将会话置为 Waiting。",
+    "Session status lifecycle. <code>waiting</code> is a UI overlay — persisted as <code>active</code> with <code>awaiting_input_since</code> set. <code>SessionEnd</code> preserves error state. Error recovery requires <code>UserPromptSubmit</code> or <code>PreToolUse</code>. The watchdog also recovers <code>Esc</code>-cancelled turns (marker or idle-timeout path) and moves the session to Waiting.":
+      "会话状态生命周期。<code>waiting</code> 是一个 UI 叠加层 — 实际持久化为 <code>active</code> 并设置了 <code>awaiting_input_since</code>。<code>SessionEnd</code> 会保留错误状态。错误恢复需要 <code>UserPromptSubmit</code> 或 <code>PreToolUse</code>。看门狗还会恢复被 <code>Esc</code> 取消的轮次（标记路径或空闲超时路径）并将会话置为 Waiting。",
     "Complete event ingestion from hook fire to browser re-render":
       "从钩子触发到浏览器重新渲染的完整事件摄取流程",
     "Initial load + WebSocket subscription lifecycle": "初始加载 + WebSocket 订阅生命周期",
@@ -1332,6 +1337,9 @@ window.__WIKI_CONTENT_I18N = {
     "API error detected in transcript": "Phát hiện lỗi API trong bản ghi",
     "Extracted from JSONL during history import, real-time transcript scanning, or the error detection watchdog. Captures quota limits, rate limits, auth failures, and other API errors. <strong>Immediately marks sessions and agents as error</strong> — previously recorded as events without changing status.":
       "Được trích xuất từ JSONL trong quá trình nhập lịch sử, quét bản ghi theo thời gian thực, hoặc bộ canh gác phát hiện lỗi. Bắt được các giới hạn hạn ngạch, giới hạn tốc độ, lỗi xác thực và các lỗi API khác. <strong>Lập tức đánh dấu phiên và agent là lỗi</strong> — trước đây chỉ được ghi nhận như sự kiện mà không thay đổi trạng thái.",
+    "Turn cancelled by the user (<code>Esc</code>)": "Lượt bị người dùng hủy (<code>Esc</code>)",
+    "Synthesized by the watchdog because pressing <code>Esc</code> fires no hook. Recovered either from the transcript <code>[Request interrupted by user]</code> marker (flagged as <code>pendingInterrupt</code>) or, when <code>Esc</code> preceded any output and left no marker, from the idle-working timeout (<code>DASHBOARD_WORKING_IDLE_SECONDS</code>, default 120). Moves the session to <strong>Waiting</strong> — the same state a normal <code>Stop</code> produces.":
+      "Được tổng hợp bởi watchdog vì việc nhấn <code>Esc</code> không kích hoạt hook nào. Khôi phục hoặc từ dấu hiệu <code>[Request interrupted by user]</code> trong bản ghi (được gắn cờ là <code>pendingInterrupt</code>), hoặc khi <code>Esc</code> diễn ra trước bất kỳ đầu ra nào và không để lại dấu hiệu, từ thời gian chờ làm-việc-rảnh-rỗi (<code>DASHBOARD_WORKING_IDLE_SECONDS</code>, mặc định 120). Chuyển phiên sang <strong>Waiting</strong> — cùng trạng thái mà một <code>Stop</code> bình thường tạo ra.",
     "Per-turn timing recorded": "Ghi lại thời gian theo từng lượt",
     "Extracted from JSONL turn boundaries. Records the duration of each assistant turn for latency analysis.":
       "Được trích xuất từ các ranh giới lượt trong JSONL. Ghi lại thời lượng của mỗi lượt trợ lý để phân tích độ trễ.",
@@ -1384,6 +1392,8 @@ window.__WIKI_CONTENT_I18N = {
       "Cổng cho máy chủ MCP HTTP+SSE (chỉ khi <code>MCP_TRANSPORT=http</code>)",
     "Bind address for the MCP HTTP server": "Địa chỉ bind cho máy chủ MCP HTTP",
     "Path to the SQLite database file": "Đường dẫn tới tệp cơ sở dữ liệu SQLite",
+    "Idle-working timeout the watchdog uses to recover an <code>Esc</code> cancel that left no transcript marker":
+      "Thời gian chờ làm-việc-rảnh-rỗi mà watchdog dùng để khôi phục một lần hủy <code>Esc</code> không để lại dấu hiệu trong bản ghi",
     "Set to <code>production</code> to serve built client from <code>client/dist/</code>":
       "Đặt thành <code>production</code> để phục vụ client đã build từ <code>client/dist/</code>",
     "The server writes the following to <code>~/.claude/settings.json</code> on every startup:":
@@ -1464,10 +1474,10 @@ window.__WIKI_CONTENT_I18N = {
       "Phép đo từ xa cốt lõi của dashboard gồm ba tiến trình (nguồn hook Claude, máy chủ dashboard, giao diện trình duyệt). Khi sidecar MCP cục bộ được bật, nó tích hợp với cùng một dashboard API qua stdio, HTTP+SSE, hoặc phương thức truyền tải REPL tương tác.",
     "Full system architecture — Claude Code process → Hook Layer → Server → Browser":
       "Kiến trúc hệ thống đầy đủ — tiến trình Claude Code → Lớp Hook → Máy chủ → Trình duyệt",
-    "Agent status transitions driven by hook events. <code>waiting</code> is a real persisted status — agents start as <code>waiting</code> and return to it after each turn. Error recovery requires active user retry (<code>UserPromptSubmit</code> or <code>PreToolUse</code>). A background watchdog detects API errors in transcripts every 15 s.":
-      "Các chuyển trạng thái của agent được điều khiển bởi các sự kiện hook. <code>waiting</code> là một trạng thái được lưu trữ thực sự — các agent bắt đầu ở trạng thái <code>waiting</code> và quay lại trạng thái đó sau mỗi lượt. Việc khôi phục lỗi đòi hỏi người dùng chủ động thử lại (<code>UserPromptSubmit</code> hoặc <code>PreToolUse</code>). Một watchdog chạy nền phát hiện lỗi API trong bản ghi mỗi 15 s.",
-    "Session status lifecycle. <code>waiting</code> is a UI overlay — persisted as <code>active</code> with <code>awaiting_input_since</code> set. <code>SessionEnd</code> preserves error state. Error recovery requires <code>UserPromptSubmit</code> or <code>PreToolUse</code>.":
-      "Vòng đời trạng thái của phiên. <code>waiting</code> là một lớp phủ giao diện — được lưu trữ dưới dạng <code>active</code> với <code>awaiting_input_since</code> đã được đặt. <code>SessionEnd</code> giữ nguyên trạng thái lỗi. Việc khôi phục lỗi đòi hỏi <code>UserPromptSubmit</code> hoặc <code>PreToolUse</code>.",
+    "Agent status transitions driven by hook events. <code>waiting</code> is a real persisted status — agents start as <code>waiting</code> and return to it after each turn. Error recovery requires active user retry (<code>UserPromptSubmit</code> or <code>PreToolUse</code>). A background watchdog detects API errors in transcripts every 15 s. The same watchdog also recovers <code>Esc</code>-cancelled turns — via either the transcript <code>[Request interrupted by user]</code> marker or the idle-working timeout when <code>Esc</code> preceded any output — and moves the session to Waiting.":
+      "Các chuyển trạng thái của agent được điều khiển bởi các sự kiện hook. <code>waiting</code> là một trạng thái được lưu trữ thực sự — các agent bắt đầu ở trạng thái <code>waiting</code> và quay lại trạng thái đó sau mỗi lượt. Việc khôi phục lỗi đòi hỏi người dùng chủ động thử lại (<code>UserPromptSubmit</code> hoặc <code>PreToolUse</code>). Một watchdog chạy nền phát hiện lỗi API trong bản ghi mỗi 15 s. Cùng watchdog đó cũng khôi phục các lượt bị hủy bằng <code>Esc</code> — thông qua dấu hiệu <code>[Request interrupted by user]</code> trong bản ghi hoặc thời gian chờ làm-việc-rảnh-rỗi khi <code>Esc</code> diễn ra trước bất kỳ đầu ra nào — và chuyển phiên sang Waiting.",
+    "Session status lifecycle. <code>waiting</code> is a UI overlay — persisted as <code>active</code> with <code>awaiting_input_since</code> set. <code>SessionEnd</code> preserves error state. Error recovery requires <code>UserPromptSubmit</code> or <code>PreToolUse</code>. The watchdog also recovers <code>Esc</code>-cancelled turns (marker or idle-timeout path) and moves the session to Waiting.":
+      "Vòng đời trạng thái của phiên. <code>waiting</code> là một lớp phủ giao diện — được lưu trữ dưới dạng <code>active</code> với <code>awaiting_input_since</code> đã được đặt. <code>SessionEnd</code> giữ nguyên trạng thái lỗi. Việc khôi phục lỗi đòi hỏi <code>UserPromptSubmit</code> hoặc <code>PreToolUse</code>. Watchdog cũng khôi phục các lượt bị hủy bằng <code>Esc</code> (đường dấu hiệu hoặc đường chờ rảnh-rỗi) và chuyển phiên sang Waiting.",
     "Complete event ingestion from hook fire to browser re-render":
       "Quy trình thu nhận sự kiện hoàn chỉnh từ khi hook kích hoạt đến khi trình duyệt render lại",
     "Initial load + WebSocket subscription lifecycle": "Tải ban đầu + vòng đời đăng ký WebSocket",

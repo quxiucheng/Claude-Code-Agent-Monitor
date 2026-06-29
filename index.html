@@ -2727,7 +2727,9 @@
             <p>
               Agents and sessions in toggleable views. Working / Waiting / Completed / Error /
               Abandoned columns with card cost, model, and current tool at a glance. WebSocket-scoped
-              updates avoid unnecessary refetches.
+              updates avoid unnecessary refetches. A background watchdog catches turns cancelled with
+              Esc - which fire no hook - and moves them out of Working into Waiting, so the board never
+              shows a phantom busy session.
             </p>
           </div>
           <div class="feature-card">

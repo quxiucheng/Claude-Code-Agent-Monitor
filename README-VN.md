@@ -506,6 +506,7 @@ sequenceDiagram
    - Phát hiện quá trình nén cuộc hội thoại (`isCompactSummary` trong bản ghi JSONL) và tạo tác nhân + sự kiện `Compaction`. Baseline token được bảo toàn qua các lần nén nên không bị mất usage. Việc đọc transcript sử dụng cache stat-based với incremental byte-offset reads — chỉ các byte mới được thêm vào kể từ lần đọc cuối cùng được parse, giúp tăng tốc ~50 lần cho các phiên dài
    - Trích xuất các lỗi API (`isApiErrorMessage`: giới hạn quota, rate limit, invalid_request) và phản hồi `type: "error"` thô từ JSONL transcript, lưu dưới dạng sự kiện `APIError`. Thời lượng lượt (`system` subtype `turn_duration`) được lưu dưới dạng `TurnDuration`. Lỗi tool result (`toolUseResult.is_error`) được theo dõi dưới dạng `ToolError`
    - **Watchdog phát hiện lỗi** — một timer nền chạy mỗi 15 giây, quét các phiên active không có sự kiện hook gần đây (>10 giây). Nó đọc lại các tệp transcript tìm lỗi API (lỗi xác thực, rate limit, hết quota), suy ra đường dẫn transcript từ `cwd` của phiên cho các phiên import không có `transcript_path` trong dữ liệu sự kiện, và đánh dấu phiên/agent là `error` khi phát hiện lỗi API. Điều này bắt các trường hợp Claude CLI không kích hoạt hook sau lỗi API (ví dụ: lỗi xác thực 401 khi CLI chỉ hiển thị lỗi và chờ)
+   - **Khôi phục khi người dùng ngắt lượt (Esc)** — hủy một lượt bằng `Esc` **không kích hoạt hook nào** (một hạn chế đã được ghi nhận của Claude Code), nên nếu không can thiệp Agent chính sẽ bị kẹt mãi ở `working`. Cùng watchdog 15 giây đó khôi phục theo hai cách: (1) khi việc hủy để lại dấu `[Request interrupted by user]` trong transcript (Esc *sau khi* đã có một phần output), transcript cache gắn cờ qua `pendingInterrupt` — được dẫn xuất hoàn toàn từ thứ tự trong transcript (interrupt mới nhất so với hoạt động lượt thực mới nhất, cùng một đồng hồ, nên hoạt động ngay cả với lần hủy dưới một giây) — và phiên chuyển sang **Đang chờ** trong khoảng ~15 giây; (2) khi Esc được nhấn *trước khi có bất kỳ output nào*, Claude Code không ghi dấu nào cả, nên áp dụng phương án dự phòng theo idle-timeout — nếu Agent chính đã ở `working` mà **không có tool nào đang chạy** (`current_tool` null) và **cả sự kiện hook lẫn transcript đều không tiến triển** trong `DASHBOARD_WORKING_IDLE_SECONDS` (mặc định `120`), lượt đó được coi là đã chết và phiên chuyển sang **Đang chờ**. Cả hai đường dẫn đều ghi một sự kiện `Interrupted` và đưa phiên về cùng trạng thái Đang chờ mà một `Stop` bình thường tạo ra. Streaming output (transcript vẫn đang tăng) và các tool call đang chạy (`current_tool` được đặt) được miễn trừ; một lần lật cờ sai hiếm gặp sẽ tự phục hồi ở hook thực tiếp theo
    - Quét máy chủ định kỳ phát hiện các phiên bị bỏ qua và các lần nén mới vượt qua khả năng phát hiện dựa trên sự kiện (ví dụ: `/compact` không kích hoạt hook, `/resume` trong vài giây sau khi tạo phiên). Tần suất được dẫn xuất từ `DASHBOARD_STALE_MINUTES` (¼ ngưỡng, kẹp giữa 60s–5 phút). Quá trình quét chia sẻ transcript cache với trình xử lý hook, tránh I/O trùng lặp. Việc dọn dẹp phiên bỏ dở cũng evict cache để bound memory
 4. **WebSocket** thông báo thay đổi tới tất cả các máy khách được kết nối
 5. **UI** nhận bản cập nhật và hiển thị lại các thành phần bị ảnh hưởng trong thời gian thực mà không cần thăm dò ý kiến.
@@ -524,6 +525,7 @@ stateDiagram-v2
     working --> working: PostToolUse (tool hoàn tất)
     working --> waiting: Stop, không lỗi
     working --> waiting: Notification (yêu cầu input)
+    working --> waiting: Esc cancel (watchdog: marker hoặc idle timeout)
     waiting --> error: Stop có lỗi
     working --> error: Stop có lỗi
     waiting --> error: Phát hiện lỗi API (watchdog)
@@ -550,6 +552,7 @@ stateDiagram-v2
     waiting --> active: UserPromptSubmit / PreToolUse / PostToolUse
     active --> waiting: Stop, không lỗi (cờ được đóng dấu lại)
     active --> waiting: Notification xin quyền (agent → waiting)
+    active --> waiting: Esc cancel (watchdog: marker hoặc idle timeout)
     active --> error: Stop, stop_reason=error
     active --> error: Phát hiện lỗi API (watchdog)
     waiting --> error: Phát hiện lỗi API (watchdog)
@@ -594,6 +597,7 @@ flowchart LR
 | `DASHBOARD_PORT`        | `4820`        | Cổng dành cho máy chủ Express                   |
 | `CLAUDE_DASHBOARD_PORT` | `4820`        | Cổng được trình xử lý hook sử dụng để đến máy chủ |
 | `NODE_ENV`              | `development` | Đặt thành `production` để phục vụ ứng dụng khách đã xây dựng |
+| `DASHBOARD_WORKING_IDLE_SECONDS` | `120` | Idle-working timeout để khôi phục một lượt bị hủy bằng `Esc` **trước khi có bất kỳ output nào** (việc này không để lại dấu nào trong transcript). Khi Agent chính đã ở `working` mà không có tool nào đang chạy và cả sự kiện hook lẫn transcript đều không tiến triển trong khoảng thời gian này, watchdog chuyển phiên sang **Đang chờ**. Giảm giá trị để khôi phục nhanh hơn, đổi lại đôi khi có lần lật cờ sai trên các lượt suy nghĩ im lặng kéo dài (sẽ tự phục hồi) |
 
 ---
 
@@ -1105,6 +1109,7 @@ Bảng điều khiển xử lý các loại hook Claude Code này:
 | `APIError`     | Lỗi API trong bản ghi JSONL  | Được trích xuất từ các mục nhập `isApiErrorMessage` (hạn ngạch, giới hạn tỷ lệ, yêu cầu không hợp lệ) và phản hồi thô `type: "error"`. **Ngay lập tức đánh dấu phiên và agent là `error`** — trước đây chỉ ghi nhận sự kiện mà không thay đổi trạng thái. Được lưu trữ dưới dạng sự kiện với chi tiết lỗi |
 | `TurnDuration` | Xoay thời gian trong bảng điểm JSONL| Trích xuất từ ​​​​các tin nhắn `system` kiểu con `turn_duration` có `durationMs`. Được lưu trữ dưới dạng sự kiện để phân tích thời gian theo cấp độ |
 | `ToolError`    | Lỗi kết quả công cụ trong JSONL     | Trích xuất từ ​​​​các mục `toolUseResult.is_error`. Theo dõi lỗi cấp công cụ để phân tích lan truyền lỗi |
+| `Interrupted`  | Lượt bị người dùng hủy (Esc) | Được tổng hợp bởi watchdog — `Esc` không kích hoạt hook nào, nên một phiên kẹt ở `working` được phát hiện từ dấu `[Request interrupted by user]` trong transcript hoặc, khi Esc xảy ra trước khi có bất kỳ output nào, từ idle-working timeout (`DASHBOARD_WORKING_IDLE_SECONDS`). Phiên chuyển sang **Đang chờ** (giống như một `Stop` bình thường) |
 
 ---
 

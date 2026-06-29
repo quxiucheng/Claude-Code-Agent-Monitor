@@ -502,6 +502,7 @@ sequenceDiagram
    - Detects conversation compaction (`isCompactSummary` entries in the JSONL transcript) and creates `Compaction` agents + events. Token baselines are preserved across compactions so no usage is lost. Transcript reads use a shared stat-based cache with incremental byte-offset reads — only new bytes appended since the last read are parsed, giving ~50x speedup for long sessions
    - Extracts API errors (`isApiErrorMessage` entries: quota limits, rate limits, invalid_request) and raw `type: "error"` responses from JSONL transcripts, stored as `APIError` events. Turn durations (`system` subtype `turn_duration`) are stored as `TurnDuration` events. Tool result errors (`toolUseResult.is_error`) are tracked as `ToolError` events
    - **Error detection watchdog** — a background timer runs every 15 seconds, scanning active sessions with no recent hook events (>10 s stale). It re-reads their transcript files looking for API errors (auth failures, rate limits, quota exhaustion), derives transcript paths from session `cwd` for imported sessions without `transcript_path` in event data, and marks sessions/agents as `error` when API errors are found. This catches cases where the Claude CLI does not fire a hook after an API error (e.g., 401 auth failures where the CLI shows the error and waits)
+   - **User-interrupt (Esc) recovery** — cancelling a turn with `Esc` fires **no hook** (a documented Claude Code limitation), so without intervention the main agent would stay stuck in `working` forever. The same 15 s watchdog recovers these two ways: (1) when the cancel leaves a `[Request interrupted by user]` marker in the transcript (Esc *after* some output), the transcript cache flags it via `pendingInterrupt` — derived purely from transcript ordering (latest interrupt vs latest real turn activity, same clock, so it works even for a sub-second cancel) — and the session moves to **Waiting** within ~15 s; (2) when Esc is pressed *before any output*, Claude Code writes no marker at all, so an idle-timeout fallback applies — if the main agent has been `working` with **no tool in flight** and **neither a hook event nor the transcript has advanced** for `DASHBOARD_WORKING_IDLE_SECONDS` (default `120`), the turn is treated as dead and the session moves to **Waiting**. Both paths log an `Interrupted` event and land the session in the same Waiting state a normal `Stop` produces. Streaming output (transcript still growing) and in-flight tool calls (`current_tool` set) are exempt; a rare false flip self-heals on the next real hook
    - A periodic server sweep catches abandoned sessions and new compactions that slipped past event-based detection (e.g., `/compact` fires no hook, `/resume` within seconds of session creation). Cadence is derived from `DASHBOARD_STALE_MINUTES` (¼ of the threshold, clamped to 60 s – 5 min). The sweep reads `transcript_path` directly off each active session row (a small index lookup) instead of scanning the events table for it; the column is populated by the hook handler the first time it sees a transcript path and is one-time-backfilled from existing events by the `db.js` migration, with a partial index `idx_sessions_active_tp` covering exactly the rows the sweep reads. The sweep shares the transcript cache with the hook handler, avoiding duplicate I/O. Abandoned session cleanup also evicts the transcript cache entry to bound memory
 4. **WebSocket** broadcasts the change to all connected clients
 5. **UI** receives the update and re-renders the affected components in real-time with no polling.
@@ -520,6 +521,7 @@ stateDiagram-v2
     working --> working: PostToolUse (tool completed)
     working --> waiting: Stop, non-error
     working --> waiting: Notification (input prompt)
+    working --> waiting: Esc cancel (watchdog: marker or idle timeout)
     waiting --> error: Stop with error
     working --> error: Stop with error
     waiting --> error: API error detected (watchdog)
@@ -546,6 +548,7 @@ stateDiagram-v2
     waiting --> active: UserPromptSubmit / PreToolUse / PostToolUse
     active --> waiting: Stop, non-error (flag re-stamped)
     active --> waiting: Permission Notification (agent → waiting)
+    active --> waiting: Esc cancel (watchdog: marker or idle timeout)
     active --> error: Stop, stop_reason=error
     active --> error: API error detected (watchdog)
     waiting --> error: API error detected (watchdog)
@@ -592,6 +595,7 @@ flowchart LR
 | `NODE_ENV`              | `development` | Set to `production` to serve the built client |
 | `DASHBOARD_UPDATE_CHECK` | _(enabled)_ | Set to `0` / `false` / `off` to disable periodic git upstream checks |
 | `DASHBOARD_UPDATE_CHECK_INTERVAL_MS` | `300000` (5 min) | Interval between automatic checks; floor 60 000 ms. Users can also click **Check now** in the update modal or in the sidebar to run one on demand. |
+| `DASHBOARD_WORKING_IDLE_SECONDS` | `120` | Idle-working timeout for recovering a turn cancelled with `Esc` **before any output** (which leaves no transcript marker). When the main agent has been `working` with no tool in flight and neither a hook event nor the transcript has advanced for this long, the watchdog moves the session to **Waiting**. Lower it for snappier recovery at the cost of occasional false flips on long silent-thinking turns (which self-heal) |
 | `DASHBOARD_HOST`        | `127.0.0.1`   | Interface the server binds to. Loopback by default (not network-reachable). Set to `0.0.0.0` to expose on a LAN (logs a startup warning) |
 | `DASHBOARD_TOKEN`       | _(unset)_     | When set, every `/api/*` request and the WebSocket must present the token (`Authorization: Bearer <token>`, `x-dashboard-token` header, or `?token=`). Off by default — loopback bind is the trust boundary |
 | `DASHBOARD_ALLOWED_HOSTS` | _(loopback)_ | Comma-separated extra `Host` values allowed on HTTP + WebSocket upgrades (DNS-rebinding guard). Add your LAN hostnames here when binding beyond loopback |
@@ -1184,6 +1188,7 @@ The dashboard processes these Claude Code hook types:
 | `APIError`     | API error in JSONL transcript  | Extracted from `isApiErrorMessage` entries (quota, rate limit, invalid_request) and raw `type: "error"` responses. **Now immediately marks the session and agent as `error`** — previously recorded as events without changing status. Stored as event with error details |
 | `TurnDuration` | Turn timing in JSONL transcript| Extracted from `system` subtype `turn_duration` messages with `durationMs`. Stored as event for turn-level timing analysis |
 | `ToolError`    | Tool result error in JSONL     | Extracted from `toolUseResult.is_error` entries. Tracks tool-level failures for error propagation analysis |
+| `Interrupted`  | Turn cancelled by the user (Esc) | Synthesized by the watchdog — `Esc` fires no hook, so a stuck `working` session is detected from the transcript's `[Request interrupted by user]` marker or, when Esc preceded any output, from the idle-working timeout (`DASHBOARD_WORKING_IDLE_SECONDS`). The session moves to **Waiting** (same as a normal `Stop`) |
 
 ---
 

@@ -2087,6 +2087,225 @@ describe("Watchdog API-error detection", () => {
 });
 
 // ============================================================
+// Watchdog: user-interrupt (Esc) recovery
+// ============================================================
+describe("Watchdog user-interrupt recovery", () => {
+  function interruptEntry(ts) {
+    return JSON.stringify({
+      type: "user",
+      interruptedMessageId: "msg-int",
+      message: { role: "user", content: [{ type: "text", text: "[Request interrupted by user]" }] },
+      timestamp: ts,
+    });
+  }
+  function promptEntry(ts, text = "do something") {
+    return JSON.stringify({
+      type: "user",
+      message: { role: "user", content: [{ type: "text", text }] },
+      timestamp: ts,
+    });
+  }
+
+  function getMain(sessionId) {
+    return db
+      .prepare("SELECT * FROM agents WHERE session_id = ? AND type = 'main' LIMIT 1")
+      .get(sessionId);
+  }
+
+  function makeStale(sessionId) {
+    db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(
+      new Date(Date.now() - 60_000).toISOString(),
+      sessionId
+    );
+  }
+
+  // The headline case: Esc pressed BEFORE any model output. Transcript order is
+  // [prompt, interrupt] with the interrupt landing a hair after the prompt, and
+  // the UserPromptSubmit hook event is stamped (server clock) AFTER the
+  // transcript interrupt. A clock comparison would miss this; pendingInterrupt
+  // (transcript-internal) must still flip the session.
+  it("should recover a session interrupted BEFORE any output (pre-output Esc)", async () => {
+    const tmpTranscript = path.join(os.tmpdir(), `watchdog-int-pre-${Date.now()}.jsonl`);
+    const sessionId = `watchdog-int-pre-${Date.now()}`;
+    const hooks = require("../routes/hooks");
+
+    try {
+      await post("/api/hooks/event", {
+        hook_type: "UserPromptSubmit",
+        data: { session_id: sessionId, transcript_path: tmpTranscript, cwd: "/tmp" },
+      });
+      assert.strictEqual(getMain(sessionId).status, "working", "precondition: main working");
+
+      // Prompt then interrupt 1ms later, both BEFORE the now-stamped hook event.
+      const base = new Date(Date.now() - 5_000);
+      fs.writeFileSync(
+        tmpTranscript,
+        promptEntry(base.toISOString()) +
+          "\n" +
+          interruptEntry(new Date(base.getTime() + 1).toISOString()) +
+          "\n"
+      );
+      makeStale(sessionId);
+      hooks.transcriptCache.invalidate(tmpTranscript);
+      hooks.watchdogCheck();
+
+      const sess = stmts.getSession.get(sessionId);
+      const main = getMain(sessionId);
+      assert.strictEqual(sess.status, "active", "session stays active (not closed)");
+      assert.ok(sess.awaiting_input_since, "session should now be awaiting input");
+      assert.strictEqual(main.status, "waiting", "main agent should be waiting after interrupt");
+      assert.ok(main.awaiting_input_since, "main agent should be flagged awaiting input");
+
+      const evt = db
+        .prepare("SELECT * FROM events WHERE session_id = ? AND event_type = 'Interrupted'")
+        .get(sessionId);
+      assert.ok(evt, "an Interrupted event should be recorded");
+    } finally {
+      try {
+        fs.unlinkSync(tmpTranscript);
+      } catch {
+        // ignore
+      }
+    }
+  });
+
+  it("should NOT touch a session where the user resumed after the interrupt", async () => {
+    const tmpTranscript = path.join(os.tmpdir(), `watchdog-int-resumed-${Date.now()}.jsonl`);
+    const sessionId = `watchdog-int-resumed-${Date.now()}`;
+    const hooks = require("../routes/hooks");
+
+    try {
+      await post("/api/hooks/event", {
+        hook_type: "UserPromptSubmit",
+        data: { session_id: sessionId, transcript_path: tmpTranscript, cwd: "/tmp" },
+      });
+      assert.strictEqual(getMain(sessionId).status, "working");
+
+      // Transcript shows the interrupt was superseded by a fresh prompt: the
+      // user came back. pendingInterrupt must be false → no flip.
+      const base = new Date(Date.now() - 10_000);
+      fs.writeFileSync(
+        tmpTranscript,
+        interruptEntry(base.toISOString()) +
+          "\n" +
+          promptEntry(new Date(base.getTime() + 2_000).toISOString(), "actually do this") +
+          "\n"
+      );
+      makeStale(sessionId);
+      hooks.transcriptCache.invalidate(tmpTranscript);
+      hooks.watchdogCheck();
+
+      const main = getMain(sessionId);
+      assert.strictEqual(main.status, "working", "resumed session must stay working");
+      assert.strictEqual(main.awaiting_input_since, null, "no awaiting flag for a resumed session");
+    } finally {
+      try {
+        fs.unlinkSync(tmpTranscript);
+      } catch {
+        // ignore
+      }
+    }
+  });
+
+  // Age the session's hook events, updated_at, AND the transcript file mtime past
+  // the idle-working timeout so the no-marker fallback considers it dead.
+  function ageIdle(sessionId, transcriptPath, ms = 300_000) {
+    const old = new Date(Date.now() - ms).toISOString();
+    db.prepare("UPDATE events SET created_at = ? WHERE session_id = ?").run(old, sessionId);
+    db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(old, sessionId);
+    const oldSec = (Date.now() - ms) / 1000;
+    fs.utimesSync(transcriptPath, oldSec, oldSec);
+  }
+
+  // The case that was actually stuck "working" forever: prompt submitted, Esc
+  // pressed BEFORE any output. Claude Code writes NO interrupt marker and fires
+  // NO hook, so pendingInterrupt is false — only the idle timeout can recover it.
+  it("should recover a stuck 'working' session via the idle timeout when there is no marker", async () => {
+    const tmpTranscript = path.join(os.tmpdir(), `watchdog-idle-${Date.now()}.jsonl`);
+    const sessionId = `watchdog-idle-${Date.now()}`;
+    const hooks = require("../routes/hooks");
+
+    try {
+      // Transcript holds only the user's prompt — no marker, no errors, no output.
+      fs.writeFileSync(
+        tmpTranscript,
+        promptEntry(new Date(Date.now() - 300_000).toISOString(), "hi") + "\n"
+      );
+
+      await post("/api/hooks/event", {
+        hook_type: "UserPromptSubmit",
+        data: { session_id: sessionId, transcript_path: tmpTranscript, cwd: "/tmp" },
+      });
+      const before = getMain(sessionId);
+      assert.strictEqual(before.status, "working");
+      assert.ok(!before.current_tool, "no tool in flight");
+      assert.strictEqual(
+        hooks.transcriptCache.extract(tmpTranscript).pendingInterrupt,
+        false,
+        "no marker → pendingInterrupt false"
+      );
+
+      ageIdle(sessionId, tmpTranscript);
+      hooks.transcriptCache.invalidate(tmpTranscript);
+      hooks.watchdogCheck();
+
+      const sess = stmts.getSession.get(sessionId);
+      const main = getMain(sessionId);
+      assert.ok(sess.awaiting_input_since, "session should be awaiting input after idle timeout");
+      assert.strictEqual(main.status, "waiting", "main agent should be waiting after idle timeout");
+      assert.ok(main.awaiting_input_since);
+    } finally {
+      try {
+        fs.unlinkSync(tmpTranscript);
+      } catch {
+        // ignore
+      }
+    }
+  });
+
+  it("should NOT idle-timeout a session with a tool in flight", async () => {
+    const tmpTranscript = path.join(os.tmpdir(), `watchdog-tool-${Date.now()}.jsonl`);
+    const sessionId = `watchdog-tool-${Date.now()}`;
+    const hooks = require("../routes/hooks");
+
+    try {
+      fs.writeFileSync(
+        tmpTranscript,
+        promptEntry(new Date(Date.now() - 300_000).toISOString(), "run it") + "\n"
+      );
+
+      // PreToolUse sets current_tool — a long-running tool, not an interrupt.
+      await post("/api/hooks/event", {
+        hook_type: "PreToolUse",
+        data: {
+          session_id: sessionId,
+          transcript_path: tmpTranscript,
+          tool_name: "Bash",
+          cwd: "/tmp",
+        },
+      });
+      const before = getMain(sessionId);
+      assert.strictEqual(before.status, "working");
+      assert.ok(before.current_tool, "precondition: a tool is in flight");
+
+      ageIdle(sessionId, tmpTranscript);
+      hooks.transcriptCache.invalidate(tmpTranscript);
+      hooks.watchdogCheck();
+
+      const main = getMain(sessionId);
+      assert.strictEqual(main.status, "working", "a session mid-tool must not be idle-timed-out");
+      assert.strictEqual(main.awaiting_input_since, null);
+    } finally {
+      try {
+        fs.unlinkSync(tmpTranscript);
+      } catch {
+        // ignore
+      }
+    }
+  });
+});
+
+// ============================================================
 // Nested Agent Spawning (agents spawning agents spawning agents)
 // ============================================================
 describe("Nested Agent Spawning", () => {

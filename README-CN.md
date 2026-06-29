@@ -507,6 +507,7 @@ sequenceDiagram
    - 检测对话压缩(JSONL Transcript 中的 `isCompactSummary` 条目)并创建 `Compaction` Agent 和事件。Token 基线在压缩中保留,不丢失任何用量。Transcript 读取使用基于 stat 的缓存和增量字节偏移读取 — 仅解析自上次读取后追加的新字节,长会话约提速 50 倍
    - 从 JSONL Transcript 提取 API 错误(`isApiErrorMessage` 条目:配额限制、速率限制、invalid_request)和原始 `type: "error"` 响应,存储为 `APIError` 事件。回合耗时(`system` 子类型 `turn_duration`)存储为 `TurnDuration` 事件。工具结果错误(`toolUseResult.is_error`)追踪为 `ToolError` 事件
    - **错误检测看门狗** — 后台定时器每 15 秒运行一次，扫描没有近期 Hook 事件（>10 秒）的活跃会话。它重新读取 Transcript 文件查找 API 错误（认证失败、速率限制、配额耗尽），从会话 `cwd` 推导 Transcript 路径（用于没有 `transcript_path` 的导入会话），并在发现 API 错误时将会话/Agent 标记为 `error`。这可以捕获 Claude CLI 在 API 错误后不触发 Hook 的情况（例如 401 认证失败时 CLI 只显示错误并等待）
+   - **用户中断（Esc）恢复** — 用户按 `Esc` 取消回合时**不会触发任何 Hook**（Claude Code 已知的限制），因此若不加干预，主 Agent 会永远卡在 `working` 状态。同一个 15 秒看门狗以两种方式恢复这些会话：(1) 当取消在 Transcript 中留下 `[Request interrupted by user]` 标记时（Esc 发生在已有部分输出之后），Transcript 缓存通过 `pendingInterrupt` 标记它 —— 该标志纯粹由 Transcript 顺序推导得出（最新的中断与最新的真实回合活动相比，使用同一时钟，因此即便是亚秒级取消也有效）—— 会话在约 15 秒内转入**等待中**；(2) 当 Esc 在**任何输出之前**按下时，Claude Code 完全不写入标记，因此应用空闲超时回退 —— 当主 Agent 处于 `working`、**没有进行中的工具**（`current_tool` 为 null），且 `DASHBOARD_WORKING_IDLE_SECONDS`（默认 `120`）期间**既无 Hook 事件也无 Transcript 推进**时，该回合被视为已死，会话转入**等待中**。两条路径都记录一个 `Interrupted` 事件，并将会话置于与正常 `Stop` 相同的等待中状态。流式输出（Transcript 仍在增长）和进行中的工具调用（`current_tool` 已设置）不受影响；罕见的误判会在下一次真实 Hook 时自愈
    - 周期性服务器清理捕获遗漏事件检测的废弃会话和新压缩(例如 `/compact` 不触发 Hook、会话创建后几秒内 `/resume`)。频率从 `DASHBOARD_STALE_MINUTES` 派生(¼ 阈值,夹在 60 秒–5 分钟之间)。清理共享 Hook Handler 的 Transcript 缓存,避免重复 I/O。废弃会话清理还会驱逐 Transcript 缓存条目以限制内存使用
 4. **WebSocket** 将变更广播到所有已连接客户端
 5. **UI** 接收更新并重新渲染受影响的组件
@@ -524,6 +525,7 @@ stateDiagram-v2
     working --> working: PostToolUse(工具完成)
     working --> waiting: Stop，非错误
     working --> waiting: Notification（输入提示）
+    working --> waiting: Esc 取消（看门狗：标记或空闲超时）
     waiting --> error: Stop 有错误
     working --> error: Stop 有错误
     waiting --> error: 检测到 API 错误（看门狗）
@@ -549,6 +551,7 @@ stateDiagram-v2
     waiting --> active: UserPromptSubmit / PreToolUse / PostToolUse
     active --> waiting: Stop，非错误（标志重新盖上）
     active --> waiting: 权限 Notification（Agent → waiting）
+    active --> waiting: Esc 取消（看门狗：标记或空闲超时）
     active --> error: Stop, stop_reason=error
     active --> error: 检测到 API 错误（看门狗）
     waiting --> error: 检测到 API 错误（看门狗）
@@ -592,6 +595,7 @@ flowchart LR
 | ----------------------- | ------------- | --------------------------------------------- |
 | `DASHBOARD_PORT` | `4820` | Express 服务器端口 |
 | `CLAUDE_DASHBOARD_PORT` | `4820` | Hook Handler 连接服务器使用的端口 |
+| `DASHBOARD_WORKING_IDLE_SECONDS` | `120` | 用于恢复**在任何输出之前**以 `Esc` 取消（不会留下 Transcript 标记）回合的空闲工作超时。当主 Agent 处于 `working`、没有进行中的工具，且在此时长内既无 Hook 事件也无 Transcript 推进时，看门狗将会话转入**等待中**。调低可获得更迅捷的恢复，但代价是长时间静默思考的回合上偶尔出现误判（会自愈） |
 | `NODE_ENV` | `development` | 设为 `production` 以提供构建后的客户端 |
 
 ---
@@ -1095,6 +1099,7 @@ Dashboard 处理以下 Claude Code Hook 类型：
 | `SessionEnd` | Claude Code CLI 进程退出 | 清除等待标志。如果会话已处于 `error` 状态，则保留错误状态；否则将所有 Agent 和会话标记为 `completed` |
 | `Compaction` | JSONL 中检测到 `/compact` | 创建压缩子 Agent（类型 `compaction`）和 Compaction 事件。通过 Transcript JSONL 中的 `isCompactSummary` 条目检测。也可由周期性扫描器对活跃会话检测 |
 | `APIError` | JSONL Transcript 中的 API 错误 | 从 `isApiErrorMessage` 条目（配额、速率限制、invalid_request）和原始 `type: "error"` 响应中提取。**立即将会话和 Agent 标记为 `error`** — 之前仅记录事件而不更改状态。存储为包含错误详情的事件 |
+| `Interrupted` | 用户取消的回合（Esc） | 由看门狗合成 —— `Esc` 不触发任何 Hook，因此从 Transcript 的 `[Request interrupted by user]` 标记，或当 Esc 发生在任何输出之前时从空闲工作超时（`DASHBOARD_WORKING_IDLE_SECONDS`）检测出卡住的 `working` 会话。会话转入**等待中**（与正常 `Stop` 相同） |
 | `TurnDuration` | JSONL Transcript 中的回合计时 | 从 `system` 子类型 `turn_duration` 消息中提取，含 `durationMs`。存储为回合级计时分析事件 |
 | `ToolError` | JSONL 中的工具结果错误 | 从 `toolUseResult.is_error` 条目中提取。追踪工具级失败用于错误传播分析 |
 
