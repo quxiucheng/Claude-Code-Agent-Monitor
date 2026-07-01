@@ -1127,6 +1127,24 @@ const stmts = {
       fast_output_per_mtok = excluded.fast_output_per_mtok,
       updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
   `),
+  // Update ONLY the time-limited introductory rates for an existing row. Kept
+  // separate from upsertPricing so a standard-rate edit never touches intro
+  // columns (and vice versa): the PUT route calls this only when the caller
+  // actually sends intro fields, so legacy callers that omit them preserve any
+  // promo untouched. intro_until = NULL clears the promo (row reverts to
+  // standard rates at all dates). This is fully generic — any model pattern can
+  // carry a promo window, not just Sonnet 5.
+  setIntroPricing: db.prepare(`
+    UPDATE model_pricing SET
+      intro_input_per_mtok = ?,
+      intro_output_per_mtok = ?,
+      intro_cache_read_per_mtok = ?,
+      intro_cache_write_per_mtok = ?,
+      intro_cache_write_1h_per_mtok = ?,
+      intro_until = ?,
+      updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+    WHERE model_pattern = ?
+  `),
   deletePricing: db.prepare("DELETE FROM model_pricing WHERE model_pattern = ?"),
   matchPricing: db.prepare(
     "SELECT * FROM model_pricing WHERE ? LIKE REPLACE(model_pattern, '%', '%') LIMIT 1"

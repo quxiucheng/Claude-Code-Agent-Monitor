@@ -239,6 +239,14 @@ router.put("/", (req, res) => {
     cache_write_1h_per_mtok,
     fast_input_per_mtok,
     fast_output_per_mtok,
+    // Time-limited introductory rates (all optional). A caller that omits every
+    // intro field leaves any existing promo untouched (see introProvided below).
+    intro_input_per_mtok,
+    intro_output_per_mtok,
+    intro_cache_read_per_mtok,
+    intro_cache_write_per_mtok,
+    intro_cache_write_1h_per_mtok,
+    intro_until,
   } = req.body;
   if (!model_pattern || !display_name) {
     return res.status(400).json({
@@ -246,17 +254,64 @@ router.put("/", (req, res) => {
     });
   }
 
-  stmts.upsertPricing.run(
-    model_pattern,
-    display_name,
-    input_per_mtok ?? 0,
-    output_per_mtok ?? 0,
-    cache_read_per_mtok ?? 0,
-    cache_write_per_mtok ?? 0,
-    cache_write_1h_per_mtok ?? 0,
-    fast_input_per_mtok ?? 0,
-    fast_output_per_mtok ?? 0
-  );
+  // Only touch the intro columns when the caller actually sent at least one
+  // intro field. This keeps the endpoint backward-compatible: existing clients
+  // that PUT just the standard rates never clobber a promo, while the Settings
+  // UI (which always sends the full intro block) is authoritative for it.
+  const introKeys = [
+    "intro_input_per_mtok",
+    "intro_output_per_mtok",
+    "intro_cache_read_per_mtok",
+    "intro_cache_write_per_mtok",
+    "intro_cache_write_1h_per_mtok",
+    "intro_until",
+  ];
+  const introProvided = introKeys.some((k) => req.body[k] !== undefined);
+
+  // Normalize / validate intro_until: an empty value clears the promo (NULL);
+  // a present value must be a YYYY-MM-DD date so the date-string comparisons in
+  // ratesForBucket stay correct.
+  let normalizedIntroUntil = null;
+  if (introProvided) {
+    const raw = typeof intro_until === "string" ? intro_until.trim() : intro_until;
+    if (raw) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+        return res.status(400).json({
+          error: { code: "INVALID_INPUT", message: "intro_until must be a YYYY-MM-DD date" },
+        });
+      }
+      normalizedIntroUntil = raw;
+    }
+  }
+
+  const writeRule = db.transaction(() => {
+    stmts.upsertPricing.run(
+      model_pattern,
+      display_name,
+      input_per_mtok ?? 0,
+      output_per_mtok ?? 0,
+      cache_read_per_mtok ?? 0,
+      cache_write_per_mtok ?? 0,
+      cache_write_1h_per_mtok ?? 0,
+      fast_input_per_mtok ?? 0,
+      fast_output_per_mtok ?? 0
+    );
+    if (introProvided) {
+      // A cleared promo (no date) zeroes the intro rates too so a stale value
+      // can't resurface if a date is re-added later without re-entering rates.
+      const keepRates = !!normalizedIntroUntil;
+      stmts.setIntroPricing.run(
+        keepRates ? (intro_input_per_mtok ?? 0) : 0,
+        keepRates ? (intro_output_per_mtok ?? 0) : 0,
+        keepRates ? (intro_cache_read_per_mtok ?? 0) : 0,
+        keepRates ? (intro_cache_write_per_mtok ?? 0) : 0,
+        keepRates ? (intro_cache_write_1h_per_mtok ?? 0) : 0,
+        normalizedIntroUntil,
+        model_pattern
+      );
+    }
+  });
+  writeRule();
 
   const rule = stmts.getPricing.get(model_pattern);
   res.json({ pricing: rule });
