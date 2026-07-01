@@ -171,7 +171,9 @@ router.get("/", (req, res) => {
 
         for (const row of chunk) {
           const sessionTokens = tokensBySession[row.id];
-          row.cost = sessionTokens ? calculateCost(sessionTokens, rules).total_cost : 0;
+          row.cost = sessionTokens
+            ? calculateCost(sessionTokens, rules, row.started_at).total_cost
+            : 0;
         }
       }
 
@@ -220,7 +222,9 @@ router.get("/", (req, res) => {
 
       for (const row of rows) {
         const sessionTokens = tokensBySession[row.id];
-        row.cost = sessionTokens ? calculateCost(sessionTokens, rules).total_cost : 0;
+        row.cost = sessionTokens
+          ? calculateCost(sessionTokens, rules, row.started_at).total_cost
+          : 0;
       }
     }
   }

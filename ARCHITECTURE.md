@@ -822,6 +822,12 @@ erDiagram
         REAL cache_write_1h_per_mtok "Cost per million 1h cache-write tokens"
         REAL fast_input_per_mtok "Fast-mode input rate (0 = none)"
         REAL fast_output_per_mtok "Fast-mode output rate (0 = none)"
+        REAL intro_input_per_mtok "Intro input rate, used when usage date <= intro_until (0 = none)"
+        REAL intro_output_per_mtok "Intro output rate"
+        REAL intro_cache_read_per_mtok "Intro cache-read rate"
+        REAL intro_cache_write_per_mtok "Intro 5m cache-write rate"
+        REAL intro_cache_write_1h_per_mtok "Intro 1h cache-write rate"
+        TEXT intro_until "Promo cutoff YYYY-MM-DD; usage on/before uses intro rates, after uses standard (NULL = no intro)"
         TEXT updated_at "ISO 8601"
     }
 

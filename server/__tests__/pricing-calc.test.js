@@ -262,3 +262,64 @@ describe("calculateCost — model_pattern matching (dated ids, no cross-match)",
     assert.deepEqual(priceOf("claude-sonnet-4-5").unpriced, ["claude-sonnet-4-5"]);
   });
 });
+
+describe("calculateCost — date-effective (intro) pricing", () => {
+  // Sonnet-5-shaped rule: intro $2/$10 through 2026-08-31, standard $3/$15 after.
+  const INTRO = [
+    {
+      model_pattern: "claude-sonnet-5%",
+      input_per_mtok: 3,
+      output_per_mtok: 15,
+      cache_read_per_mtok: 0.3,
+      cache_write_per_mtok: 3.75,
+      cache_write_1h_per_mtok: 6,
+      intro_input_per_mtok: 2,
+      intro_output_per_mtok: 10,
+      intro_cache_read_per_mtok: 0.2,
+      intro_cache_write_per_mtok: 2.5,
+      intro_cache_write_1h_per_mtok: 4,
+      intro_until: "2026-08-31",
+    },
+  ];
+  // 1M output → intro $10, standard $15.
+  const cost = (asOf, rowDate) =>
+    calculateCost(
+      [{ ...bucket({ model: "claude-sonnet-5", output_tokens: M }), date: rowDate }],
+      INTRO,
+      asOf
+    ).total_cost;
+
+  it("uses intro rate before the cutoff (asOf)", () => {
+    assert.equal(cost("2026-07-01", undefined), 10);
+  });
+
+  it("uses intro rate on the cutoff day (inclusive)", () => {
+    assert.equal(cost("2026-08-31", undefined), 10);
+  });
+
+  it("uses standard rate after the cutoff", () => {
+    assert.equal(cost("2026-09-01", undefined), 15);
+    assert.equal(cost("2026-10-15", undefined), 15);
+  });
+
+  it("prefers the row's own date over asOf (per-day pricing)", () => {
+    // asOf is post-cutoff, but the row is dated pre-cutoff → intro applies.
+    assert.equal(cost("2026-12-01", "2026-08-01"), 10);
+    // and vice versa
+    assert.equal(cost("2026-07-01", "2026-09-15"), 15);
+  });
+
+  it("a rule with no intro_until always uses standard rate", () => {
+    const NO_INTRO = [
+      { model_pattern: "claude-sonnet-5%", input_per_mtok: 3, output_per_mtok: 15 },
+    ];
+    assert.equal(
+      calculateCost(
+        [bucket({ model: "claude-sonnet-5", output_tokens: M })],
+        NO_INTRO,
+        "2026-07-01"
+      ).total_cost,
+      15
+    );
+  });
+});

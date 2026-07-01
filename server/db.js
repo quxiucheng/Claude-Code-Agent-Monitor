@@ -214,6 +214,17 @@ db.exec(`
     -- caching multipliers (see server/lib/pricing-constants.js).
     fast_input_per_mtok REAL NOT NULL DEFAULT 0,
     fast_output_per_mtok REAL NOT NULL DEFAULT 0,
+    -- Time-limited introductory rates. When intro_until is set, usage on/before
+    -- that date (YYYY-MM-DD) is priced at the intro_* rates and usage after it at
+    -- the standard rates — so promo pricing (e.g. Claude Sonnet 5's launch
+    -- discount through 2026-08-31) stays correct for historical and future usage
+    -- at all times. 0 / NULL means "no intro rate" → standard rates always apply.
+    intro_input_per_mtok REAL NOT NULL DEFAULT 0,
+    intro_output_per_mtok REAL NOT NULL DEFAULT 0,
+    intro_cache_read_per_mtok REAL NOT NULL DEFAULT 0,
+    intro_cache_write_per_mtok REAL NOT NULL DEFAULT 0,
+    intro_cache_write_1h_per_mtok REAL NOT NULL DEFAULT 0,
+    intro_until TEXT,
     updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
   );
 
@@ -449,6 +460,26 @@ try {
   setFast.run(30, 150, "claude-opus-4-6%");
 }
 
+// Migrate: add time-limited introductory-rate columns to model_pricing.
+// Usage on/before intro_until prices at the intro_* rates; usage after prices at
+// standard — so promo pricing (e.g. Claude Sonnet 5's launch discount) stays
+// correct for both historical and future usage. Additive + default 0/NULL, so
+// existing rows keep behaving exactly as before until an intro rate is set.
+try {
+  db.prepare("SELECT intro_until FROM model_pricing LIMIT 1").get();
+} catch {
+  for (const col of [
+    "intro_input_per_mtok",
+    "intro_output_per_mtok",
+    "intro_cache_read_per_mtok",
+    "intro_cache_write_per_mtok",
+    "intro_cache_write_1h_per_mtok",
+  ]) {
+    db.prepare(`ALTER TABLE model_pricing ADD COLUMN ${col} REAL NOT NULL DEFAULT 0`).run();
+  }
+  db.prepare("ALTER TABLE model_pricing ADD COLUMN intro_until TEXT").run();
+}
+
 // Default model pricing — shared by initial seed + startup top-up + reset endpoint
 // Columns: pattern, display_name, input, output, cache_read (hits & refreshes),
 //          cache_write (5m ephemeral writes), cache_write_1h (1h ephemeral writes),
@@ -502,6 +533,29 @@ const DEFAULT_PRICING = [
   });
   addMissing(DEFAULT_PRICING);
 }
+
+// Known introductory promo rates: [pattern, in, out, cacheRead, cw5m, cw1h, until].
+// Standard rates live in the DEFAULT_PRICING row; these add the time-limited
+// discount on top. Claude Sonnet 5: 2/3-off launch pricing through 2026-08-31.
+const DEFAULT_INTRO_PRICING = [["claude-sonnet-5%", 2, 10, 0.2, 2.5, 4, "2026-08-31"]];
+
+// Backfill the known intro rates. Only fills rows whose intro_until is still
+// NULL, so a user who edits or clears an intro rate in Settings is never
+// overwritten. Shared by startup and the reset-pricing endpoint (which
+// re-seeds standard rates and must re-apply the intro discount too, else Sonnet
+// 5 would silently price at standard until the next restart).
+function applyIntroPricing(dbHandle = db) {
+  const setIntro = dbHandle.prepare(
+    `UPDATE model_pricing SET
+       intro_input_per_mtok = ?, intro_output_per_mtok = ?, intro_cache_read_per_mtok = ?,
+       intro_cache_write_per_mtok = ?, intro_cache_write_1h_per_mtok = ?, intro_until = ?
+     WHERE model_pattern = ? AND intro_until IS NULL`
+  );
+  for (const [pattern, inp, out, cr, cw5m, cw1h, until] of DEFAULT_INTRO_PRICING) {
+    setIntro.run(inp, out, cr, cw5m, cw1h, until, pattern);
+  }
+}
+applyIntroPricing();
 
 // Migrate: if token_usage has rows without model column (old schema), add it
 try {
@@ -1315,4 +1369,4 @@ const stmts = {
   ),
 };
 
-module.exports = { db, stmts, DB_PATH, DEFAULT_PRICING };
+module.exports = { db, stmts, DB_PATH, DEFAULT_PRICING, applyIntroPricing };
