@@ -445,8 +445,17 @@ function startSessionSync(broadcast) {
       });
   }
 
-  // 1. Immediate sweep — catch anything the one-time backfill missed, now.
-  runSweep();
+  // 1. Deferred initial sweep — let the HTTP server and WebSocket handshake
+  //    come up and serve the first page load before the (potentially heavy)
+  //    cold catch-up sweep runs. On a machine with many grown transcripts, the
+  //    cold sweep re-parses every file whose mtime is newer than its DB
+  //    updated_at; running it inline at startup can monopolize the event loop
+  //    long enough that the Vite `/ws` proxy handshake times out ("WebSocket is
+  //    closed before the connection is established") and the dashboard looks
+  //    stuck for a minute-plus. The sweep itself yields between heavy re-parses
+  //    (see syncDefaultProjects), so once it starts it stays cooperative.
+  const initialSweep = setTimeout(runSweep, 250);
+  if (initialSweep.unref) initialSweep.unref();
 
   // 3. Periodic safety net.
   const POLL_MS = process.env.DASHBOARD_SESSION_SYNC_MS

@@ -1684,6 +1684,14 @@ async function syncDefaultProjects(dbModule, options = {}) {
         if (!existed || !result.skipped) {
           changed.push({ sessionId: session.sessionId, isNew: !existed });
         }
+        // Cooperative yield after a heavy re-parse (this file fell through the
+        // fast path, so its full transcript + subagents were just parsed and
+        // imported synchronously). A cold sweep can re-parse many multi-MB
+        // transcripts back-to-back; without yielding, that monopolizes the
+        // event loop and starves the HTTP API + WebSocket handshake. The
+        // fast-path skip above `continue`s before reaching here, so unchanged
+        // files never pay this cost.
+        await new Promise((resolve) => setImmediate(resolve));
       } catch {
         /* non-fatal — leave mtime recorded so we don't spin on a bad file */
       }

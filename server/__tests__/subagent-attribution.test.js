@@ -736,3 +736,19 @@ describe("scanAndImportSubagents — nested subagent hierarchy", () => {
     }
   });
 });
+
+describe("events dedup index", () => {
+  it("has a (agent_id, event_type) index so per-tool-event dedup is not a full scan", () => {
+    // importSubagentFromJsonl dedups every tool event with
+    // "WHERE agent_id = ? AND event_type = ? AND data LIKE '%tool_use_id%'".
+    // Without this index each dedup full-scans the events table; on a large DB a
+    // single re-import (e.g. the startup sweep touching a subagent-heavy session)
+    // takes tens of seconds and blocks the event loop. Guard it from regressing.
+    const row = db
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_events_agent_type'"
+      )
+      .get();
+    assert.ok(row, "idx_events_agent_type must exist to keep subagent dedup indexed");
+  });
+});

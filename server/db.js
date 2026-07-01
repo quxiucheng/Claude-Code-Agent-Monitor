@@ -254,6 +254,13 @@ db.exec(`
 
   -- Composite indexes for frequent query patterns (columns that exist at table creation time)
   CREATE INDEX IF NOT EXISTS idx_events_session_type ON events(session_id, event_type);
+  -- Subagent JSONL import dedups each tool event with
+  -- "WHERE agent_id = ? AND event_type = ? AND data LIKE '%tool_use_id%'".
+  -- Without an agent_id index that is a full events-table scan per tool event;
+  -- on a large DB a single re-import (e.g. the startup sync sweep re-touching a
+  -- session with many subagents) becomes tens of seconds and blocks the event
+  -- loop. This composite narrows each dedup to the agent's events of that type.
+  CREATE INDEX IF NOT EXISTS idx_events_agent_type ON events(agent_id, event_type);
   CREATE INDEX IF NOT EXISTS idx_agents_session_type ON agents(session_id, type);
   CREATE INDEX IF NOT EXISTS idx_dashboard_runs_started ON dashboard_runs(started_at DESC);
   CREATE INDEX IF NOT EXISTS idx_dashboard_runs_session ON dashboard_runs(session_id);
@@ -975,9 +982,26 @@ const stmts = {
       cache_read_tokens = cache_read_tokens + excluded.cache_read_tokens,
       cache_write_tokens = cache_write_tokens + excluded.cache_write_tokens
   `),
-  // Replace a bucket's totals with the latest full re-parse. The baseline_*
-  // columns preserve the highest-seen value so compaction (which shrinks the
-  // transcript) never reduces effective totals. Args, in order:
+  // Replace a bucket's totals with the latest full re-parse, keeping the
+  // effective total (`live + baseline`) a monotonic HIGH-WATER MARK: it never
+  // decreases, but it also never inflates past the largest value ever seen.
+  //
+  //   baseline := max(old_live + old_baseline - new_live, 0)
+  //   live     := new_live
+  //   ⇒ effective = new_live + baseline = max(old_effective, new_live)
+  //
+  // Why not the old `baseline += old_live` on any decrease: two writers hit the
+  // same (session, model, …) bucket with DIFFERENT scopes — the live hook writer
+  // stores main-transcript-only tokens (server/routes/hooks.js), while
+  // importSession stores main+subagents combined (combineSessionTokens). Every
+  // time the smaller write followed the larger, the old formula mistook it for a
+  // compaction and ADDED the current value into baseline, so a long-lived,
+  // frequently-reswept session accumulated a baseline many times its real usage
+  // (a 26-day/80-repo session reached ~11× — its transcript proved 774M
+  // cache-read while baseline claimed 8.5B). Transcripts are append-only, so a
+  // full re-parse always sees the complete total; the high-water mark preserves
+  // the true max across writer-scope noise and re-imports without ever
+  // double-counting. Args, in order:
   //   session_id, model, speed, inference_geo, service_tier,
   //   input, output, cache_read, cache_write, cache_write_1h,
   //   web_search, web_fetch, code_execution
@@ -989,22 +1013,14 @@ const stmts = {
                              baseline_web_search, baseline_web_fetch, baseline_code_execution)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0, 0, 0)
     ON CONFLICT(session_id, model, speed, inference_geo, service_tier) DO UPDATE SET
-      baseline_input = CASE WHEN excluded.input_tokens < input_tokens
-        THEN baseline_input + input_tokens ELSE baseline_input END,
-      baseline_output = CASE WHEN excluded.output_tokens < output_tokens
-        THEN baseline_output + output_tokens ELSE baseline_output END,
-      baseline_cache_read = CASE WHEN excluded.cache_read_tokens < cache_read_tokens
-        THEN baseline_cache_read + cache_read_tokens ELSE baseline_cache_read END,
-      baseline_cache_write = CASE WHEN excluded.cache_write_tokens < cache_write_tokens
-        THEN baseline_cache_write + cache_write_tokens ELSE baseline_cache_write END,
-      baseline_cache_write_1h = CASE WHEN excluded.cache_write_1h_tokens < cache_write_1h_tokens
-        THEN baseline_cache_write_1h + cache_write_1h_tokens ELSE baseline_cache_write_1h END,
-      baseline_web_search = CASE WHEN excluded.web_search_requests < web_search_requests
-        THEN baseline_web_search + web_search_requests ELSE baseline_web_search END,
-      baseline_web_fetch = CASE WHEN excluded.web_fetch_requests < web_fetch_requests
-        THEN baseline_web_fetch + web_fetch_requests ELSE baseline_web_fetch END,
-      baseline_code_execution = CASE WHEN excluded.code_execution_requests < code_execution_requests
-        THEN baseline_code_execution + code_execution_requests ELSE baseline_code_execution END,
+      baseline_input = MAX(input_tokens + baseline_input - excluded.input_tokens, 0),
+      baseline_output = MAX(output_tokens + baseline_output - excluded.output_tokens, 0),
+      baseline_cache_read = MAX(cache_read_tokens + baseline_cache_read - excluded.cache_read_tokens, 0),
+      baseline_cache_write = MAX(cache_write_tokens + baseline_cache_write - excluded.cache_write_tokens, 0),
+      baseline_cache_write_1h = MAX(cache_write_1h_tokens + baseline_cache_write_1h - excluded.cache_write_1h_tokens, 0),
+      baseline_web_search = MAX(web_search_requests + baseline_web_search - excluded.web_search_requests, 0),
+      baseline_web_fetch = MAX(web_fetch_requests + baseline_web_fetch - excluded.web_fetch_requests, 0),
+      baseline_code_execution = MAX(code_execution_requests + baseline_code_execution - excluded.code_execution_requests, 0),
       input_tokens = excluded.input_tokens,
       output_tokens = excluded.output_tokens,
       cache_read_tokens = excluded.cache_read_tokens,

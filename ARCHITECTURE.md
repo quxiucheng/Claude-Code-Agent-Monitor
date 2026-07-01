@@ -809,7 +809,7 @@ erDiagram
         INTEGER web_search_requests "server_tool_use web search count"
         INTEGER web_fetch_requests "server_tool_use web fetch count"
         INTEGER code_execution_requests "server_tool_use code execution count"
-        INTEGER baseline_input "Accumulated pre-compaction tokens (one per metric)"
+        INTEGER baseline_input "High-water baseline; effective = live + baseline = max ever seen (one per metric)"
     }
 
     model_pricing {
@@ -897,6 +897,8 @@ erDiagram
 | `idx_events_session`   | events   | `session_id`      | Session detail event list      |
 | `idx_events_type`      | events   | `event_type`      | Filter events by type          |
 | `idx_events_created`   | events   | `created_at DESC` | Activity feed ordering         |
+| `idx_events_session_type` | events | `session_id, event_type` | Per-session event-type filters |
+| `idx_events_agent_type` | events  | `agent_id, event_type` | Keeps `importSubagentFromJsonl`'s per-tool-event `data LIKE` dedup an index seek instead of a full events scan — a large re-import (startup sweep touching a subagent-heavy session) drops from tens of seconds to sub-second |
 | `idx_sessions_status`  | sessions | `status`          | Status filter on Sessions page and Kanban Sessions view |
 | `idx_sessions_started` | sessions | `started_at DESC` | Default sort order             |
 | `idx_alert_events_triggered` | alert_events | `triggered_at DESC` | Alert feed ordering      |
@@ -1230,20 +1232,26 @@ flowchart LR
 
     C --> H[replaceTokenUsage]
     F --> H
-    H --> I{New input_tokens<br/>< existing?}
-    I -->|yes<br/>compaction occurred| J[Move existing into<br/>baseline_* columns<br/>add new on top]
-    I -->|no| K[Overwrite with new totals]
+    H --> I[baseline := max of old + new<br/>effective = max of old_effective, new_live]
+    I --> K[Overwrite live with new totals]
 
-    style J fill:#10b981,stroke:#34d399,color:#fff
+    style I fill:#10b981,stroke:#34d399,color:#fff
     style E fill:#1a1a28,stroke:#2a2a3d,color:#e4e4ed
     style G fill:#f59e0b,stroke:#fbbf24,color:#000
 ```
 
-The `baseline_*` columns are why cost is **monotonic** with respect to
-re-imports: the cost endpoint sums `input_tokens + baseline_input` (and
-the matching `output`, `cache_read`, `cache_write` pairs) from the
-`token_usage` table, so compacted sessions retain their pre-compaction
-usage for billing purposes.
+The `baseline_*` columns keep the effective total (`live + baseline`) a
+**monotonic high-water mark**: the cost endpoint sums `input_tokens +
+baseline_input` (and the matching `output`, `cache_read`, `cache_write`
+pairs), and `replaceTokenUsage` sets `baseline := max(old_live +
+old_baseline − new_live, 0)` so `effective = max(old_effective, new_live)`.
+This never decreases (a compaction that shrinks the transcript keeps its
+pre-compaction usage) and — crucially — never inflates past the largest
+value ever seen. The earlier formula added the current value into baseline
+on _any_ decrease, which two writers of different scope (the live hook
+writer stores main-only tokens; `importSession` stores main+subagents)
+could ratchet upward on every downward fluctuation — one 26-day session
+accumulated a baseline ~11× its real usage before this was fixed.
 
 ### Supported source layouts
 
