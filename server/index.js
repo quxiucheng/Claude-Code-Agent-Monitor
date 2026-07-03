@@ -733,6 +733,11 @@ if (require.main === module) {
   const { broadcast } = require("./websocket");
   const { importCompactions } = require("../scripts/import-history");
   const { transcriptCache } = require("./routes/hooks");
+  // Per-session newest workflow-artifact mtime already ingested by this sweep,
+  // so step 3 below skips sessions whose workflow files are unchanged (the same
+  // cheap fingerprint startWorkflowPoll uses). Declared once so it persists
+  // across sweep ticks.
+  const sweepWorkflowSeen = new Map();
   setInterval(() => {
     // 1. Stale session cleanup — batch agent updates to avoid N+1 queries
     const stale = cleanupDb.stmts.findStaleSessions.all("__periodic__", STALE_MINUTES);
@@ -809,9 +814,23 @@ if (require.main === module) {
     // 3. Scan active sessions for Workflow-tool run journals (issue #167).
     // Catches workflows that complete without a subsequent hook and flips
     // launch-detected "running" rows to "completed" once their journal lands.
-    const { ingestWorkflowsForSession } = require("./lib/workflow-ingest");
+    const { ingestWorkflowsForSession, workflowsMaxMtime } = require("./lib/workflow-ingest");
     for (const row of active) {
       if (!row.tp) continue;
+      // Skip sessions whose workflow artifacts are unchanged since the last
+      // ingest — the same cheap mtime fingerprint startWorkflowPoll uses.
+      // Without this the sweep full-re-parses every workflow journal and every
+      // inner agent-*.jsonl for every active session every cycle; on a large
+      // corpus that re-parse exceeds the sweep interval, sweeps overlap, and
+      // the event loop pegs (dashboard stops responding — white page).
+      let mtime = 0;
+      try {
+        mtime = workflowsMaxMtime(row.tp);
+      } catch {
+        mtime = 0;
+      }
+      if (mtime === 0 || sweepWorkflowSeen.get(row.session_id) === mtime) continue;
+      sweepWorkflowSeen.set(row.session_id, mtime);
       ingestWorkflowsForSession(cleanupDb, { id: row.session_id, transcript_path: row.tp })
         .then((changed) => {
           if (!changed || changed.length === 0) return;

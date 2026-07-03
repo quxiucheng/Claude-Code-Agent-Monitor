@@ -340,6 +340,58 @@ describe("workflowsMaxMtime", () => {
       "0 when there are no workflow artifacts"
     );
   });
+
+  // Regression guard for the maintenance sweep (server/index.js step 3) and
+  // startWorkflowPoll: both skip a session whose workflow artifacts are
+  // unchanged and re-ingest only once the fingerprint advances. Before the
+  // gate, the 5-min sweep full-re-parsed every workflow journal and every
+  // inner agent-*.jsonl for every active session every cycle; on a large
+  // corpus each sweep outran the interval, sweeps overlapped, and the event
+  // loop pegged (dashboard stopped responding). This asserts the exact
+  // skip/re-ingest decision that gate relies on. Isolated root — no shared
+  // fixture state so later suites are unaffected.
+  it("gates skip vs re-ingest: stable fingerprint when unchanged, higher after a new artifact", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "wf-gate-"));
+    try {
+      const sid = "sess-gate";
+      const tp = path.join(root, `${sid}.jsonl`);
+      fs.writeFileSync(tp, "");
+      const wdir = path.join(root, sid, "workflows");
+      writeJson(path.join(wdir, "wf_a.json"), {
+        runId: "wf_a",
+        status: "completed",
+        startTime: 1700000000000,
+        workflowProgress: [],
+      });
+
+      const seen = new Map(); // mirrors sweepWorkflowSeen / lastSeen
+
+      const m1 = workflowsMaxMtime(tp);
+      assert.ok(m1 > 0, "fingerprint > 0 with a journal");
+      assert.equal(m1 === 0 || seen.get(sid) === m1, false, "first sight ingests");
+      seen.set(sid, m1);
+
+      const m2 = workflowsMaxMtime(tp);
+      assert.equal(m2, m1, "fingerprint stable when nothing changes");
+      assert.equal(m2 === 0 || seen.get(sid) === m2, true, "unchanged session is skipped");
+
+      const later = path.join(wdir, "wf_b.json");
+      writeJson(later, {
+        runId: "wf_b",
+        status: "completed",
+        startTime: 1700000001000,
+        workflowProgress: [],
+      });
+      const bump = m1 / 1000 + 5; // seconds, safely newer than m1
+      fs.utimesSync(later, bump, bump);
+
+      const m3 = workflowsMaxMtime(tp);
+      assert.ok(m3 > m1, "fingerprint advances when a new artifact appears");
+      assert.equal(m3 === 0 || seen.get(sid) === m3, false, "changed session is re-ingested");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("live running workflow (no terminal journal)", () => {
