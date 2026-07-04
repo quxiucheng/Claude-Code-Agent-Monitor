@@ -158,14 +158,44 @@ function isAutoSessionName(name, sessionId, cwd) {
 }
 
 /**
+ * Short display label derived from the transcript's first user prompt.
+ * Mirrors the 60-char subagent-name truncation used in PreToolUse so
+ * descriptor-named rows read consistently across the board.
+ */
+function firstUserLabel(result) {
+  const raw = result && typeof result.firstUserMessage === "string" ? result.firstUserMessage : "";
+  const text = raw.trim();
+  if (!text) return null;
+  return text.length > 60 ? text.slice(0, 57) + "..." : text;
+}
+
+/**
+ * True when the main agent's name is still an auto-generated label:
+ * "Main Agent" (seed/API fallback) or "Main Agent - <auto session label>"
+ * (hook / import creation paths). A suffix that is a real title — or the
+ * user's own rename — makes the name non-auto and it is never overwritten.
+ */
+function isAutoMainAgentName(name, sessionId, cwd) {
+  if (!name || !name.trim()) return true;
+  if (name === "Main Agent") return true;
+  const prefix = "Main Agent - ";
+  if (name.startsWith(prefix)) return isAutoSessionName(name.slice(prefix.length), sessionId, cwd);
+  return false;
+}
+
+/**
  * Keep sessions.name in sync with the transcript's human-readable title.
  * Source of truth lives in the JSONL as `custom-title` (explicit /rename,
  * `claude -n`, picker Ctrl+R) and `ai-title` (auto / plan-accept) lines, which
  * the TranscriptCache surfaces on every extract. Precedence: an explicit
  * custom title always wins; an ai-title only fills in when the current name is
  * still an auto/placeholder label (so a name the user set in the dashboard or
- * via /rename is never clobbered by the auto-generated title). Broadcasts
- * session_updated only on a real change so the UI updates in real time.
+ * via /rename is never clobbered by the auto-generated title). A name that
+ * equals the first-user-prompt descriptor (applied by
+ * applyFirstUserDescriptor when no title existed yet) counts as replaceable
+ * too — the descriptor sits BELOW both title kinds, so a later ai-title must
+ * still be able to take over. Broadcasts session_updated only on a real
+ * change so the UI updates in real time.
  */
 function syncSessionName(session, result) {
   if (!session || !result) return;
@@ -173,12 +203,61 @@ function syncSessionName(session, result) {
   const ai = result.aiTitle && result.aiTitle.trim();
   const desired = custom || ai || null;
   if (!desired) return;
-  if (!custom && !isAutoSessionName(session.name, session.id, session.cwd)) return;
+  const replaceable =
+    isAutoSessionName(session.name, session.id, session.cwd) ||
+    session.name === firstUserLabel(result);
+  if (!custom && !replaceable) return;
   const upd = stmts.updateSessionName.run(desired, session.id, desired);
   if (upd.changes > 0) {
     const refreshed = stmts.getSession.get(session.id);
     if (refreshed) broadcast("session_updated", refreshed);
   }
+}
+
+/**
+ * Fallback descriptor from the session's first user prompt (issue #201).
+ * Fills sessions.name and the main agent's name/task ONLY while those fields
+ * still hold their auto-generated placeholders, so a custom-title, ai-title,
+ * or user-set name is never clobbered. Must run strictly AFTER
+ * syncSessionName within the same pass: title sync gets first claim on the
+ * name, and this helper re-reads the rows so it sees the result. Idempotent —
+ * once applied (or once real names exist), every subsequent call is a no-op
+ * with no broadcast.
+ */
+function applyFirstUserDescriptor(sessionId, result) {
+  const label = firstUserLabel(result);
+  if (!label) return;
+
+  const session = stmts.getSession.get(sessionId);
+  if (session && isAutoSessionName(session.name, session.id, session.cwd)) {
+    const upd = stmts.updateSessionName.run(label, session.id, label);
+    if (upd.changes > 0) {
+      const refreshed = stmts.getSession.get(session.id);
+      if (refreshed) broadcast("session_updated", refreshed);
+    }
+  }
+
+  const mainAgent = getMainAgent(sessionId);
+  if (!mainAgent) return;
+  const desiredName = `Main Agent - ${label}`;
+  const fillName =
+    isAutoMainAgentName(mainAgent.name, sessionId, session?.cwd) && mainAgent.name !== desiredName;
+  const fillTask = !mainAgent.task || !String(mainAgent.task).trim();
+  if (!fillName && !fillTask) return;
+  // updateAgent writes current_tool VERBATIM (no COALESCE) — pass the
+  // existing value through, or this out-of-band update would wipe an
+  // in-flight tool mid-turn.
+  stmts.updateAgent.run(
+    fillName ? desiredName : null,
+    null,
+    fillTask ? result.firstUserMessage : null,
+    mainAgent.current_tool,
+    null,
+    null,
+    mainAgent.id
+  );
+  const refreshedAgent = stmts.getAgent.get(mainAgent.id);
+  if (refreshedAgent) broadcast("agent_updated", refreshedAgent);
 }
 
 const processEvent = db.transaction((hookType, data) => {
@@ -601,6 +680,12 @@ const processEvent = db.transaction((hookType, data) => {
       // (set via /rename, `claude -n`, or the auto ai-title). Re-read the row
       // so we see any name set earlier in this same transaction.
       syncSessionName(stmts.getSession.get(sessionId), result);
+
+      // Then let the first user prompt fill whatever placeholders remain
+      // (session name, main agent name/task). Runs on every transcript-bearing
+      // event — live on UserPromptSubmit, and as backfill for sessions that
+      // never get a title (including imported ones) on any later event.
+      applyFirstUserDescriptor(sessionId, result);
 
       // Register compaction agents and events.
       // Each isCompactSummary entry in the JSONL = one compaction that occurred.
@@ -1032,9 +1117,14 @@ function watchdogCheck() {
 
       // Pick up a /rename or fresh ai-title even when no hook fired for it —
       // a session left idle right after /rename has no further events, so the
-      // watchdog is the path that surfaces the new name within ~15s.
+      // watchdog is the path that surfaces the new name within ~15s. The
+      // first-user-prompt descriptor backfills remaining placeholders here for
+      // the same reason (idle sessions get no further hook events).
       const fullSess = stmts.getSession.get(sess.id);
-      if (fullSess) syncSessionName(fullSess, result);
+      if (fullSess) {
+        syncSessionName(fullSess, result);
+        applyFirstUserDescriptor(sess.id, result);
+      }
 
       const mainAgent = db
         .prepare("SELECT * FROM agents WHERE session_id = ? AND type = 'main' LIMIT 1")

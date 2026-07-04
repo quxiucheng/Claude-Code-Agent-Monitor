@@ -29,6 +29,7 @@ const {
   getProjectsDir,
   getTranscriptSnapshotDir,
 } = require("../server/lib/claude-home");
+const { extractFirstUserText } = require("../server/lib/transcript-cache");
 const CLAUDE_DIR = getClaudeHome();
 const PROJECTS_DIR = getProjectsDir();
 
@@ -102,6 +103,17 @@ function copyIfNewer(src, dest) {
 }
 
 /**
+ * 60-char display label derived from the captured first user prompt.
+ * Mirrors the truncation routes/hooks.js applies so imported and live
+ * sessions read identically. Null when there is no usable text.
+ */
+function firstUserLabel(text) {
+  const t = typeof text === "string" ? text.trim() : "";
+  if (!t) return null;
+  return t.length > 60 ? t.slice(0, 57) + "..." : t;
+}
+
+/**
  * Parse a single JSONL session file to extract session metadata.
  */
 async function parseSessionFile(filePath) {
@@ -138,6 +150,9 @@ async function parseSessionFile(filePath) {
   // metadata lines, so the last value seen wins.
   let customTitle = null;
   let aiTitle = null;
+  // First real user prompt (tool-result / meta / command entries skipped) —
+  // fallback descriptor for sessions that never got a title. First wins.
+  let firstUserMessage = null;
 
   for await (const line of rl) {
     if (!line.trim()) continue;
@@ -217,6 +232,10 @@ async function parseSessionFile(filePath) {
 
     if (entry.type === "user") {
       userMessageCount++;
+      if (firstUserMessage === null) {
+        const firstText = extractFirstUserText(entry);
+        if (firstText) firstUserMessage = firstText;
+      }
       if (
         entry.toolUseResult &&
         typeof entry.toolUseResult === "object" &&
@@ -286,12 +305,13 @@ async function parseSessionFile(filePath) {
 
   const projectName = cwd ? path.basename(cwd) : slug || `Session ${sessionId.slice(0, 8)}`;
   // Prefer the real session title (custom > ai) when the transcript carries
-  // one; otherwise fall back to a cwd/slug-derived label. The hook ingestor
-  // applies the same precedence live, so imported and active names agree.
+  // one, then the first-user-prompt descriptor, then a cwd/slug-derived
+  // label. The hook ingestor applies the same precedence live, so imported
+  // and active names agree.
   const fallbackName = slug
     ? `${projectName} (${slug})`
     : `${projectName} - ${sessionId.slice(0, 8)}`;
-  const sessionName = customTitle || aiTitle || fallbackName;
+  const sessionName = customTitle || aiTitle || firstUserLabel(firstUserMessage) || fallbackName;
 
   // Check if the JSONL file was recently modified — indicates a possibly-active session
   let fileModifiedAt = null;
@@ -307,6 +327,7 @@ async function parseSessionFile(filePath) {
     name: sessionName,
     customTitle,
     aiTitle,
+    firstUserMessage,
     cwd,
     model,
     version,
@@ -1343,20 +1364,67 @@ function importSession(dbModule, session) {
 
     // Backfill the session name from the transcript title when the stored name
     // is still an auto/placeholder label. Earlier imports named sessions after
-    // their cwd folder; the real title (custom > ai) is more useful. Only
-    // overwrite auto labels so a name the user picked is preserved.
-    const transcriptTitle = session.customTitle || session.aiTitle || null;
+    // their cwd folder; the real title (custom > ai) — or, failing that, the
+    // first-user-prompt descriptor — is more useful. Only overwrite auto
+    // labels so a name the user picked is preserved. A stored name equal to
+    // the descriptor counts as auto too, so a title that appears later can
+    // still take over (descriptor sits below both title kinds).
+    const descriptorName = firstUserLabel(session.firstUserMessage);
+    const transcriptTitle = session.customTitle || session.aiTitle || descriptorName || null;
     if (transcriptTitle) {
       const base = session.cwd ? path.basename(session.cwd) : null;
       const stored = existing.name || "";
       const isAuto =
         !stored.trim() ||
         stored === `Session ${session.sessionId.slice(0, 8)}` ||
+        (descriptorName !== null && stored === descriptorName) ||
         (base &&
           (stored === base || stored.startsWith(`${base} - `) || stored.startsWith(`${base} (`)));
       if (isAuto && stored !== transcriptTitle) {
         stmts.updateSession.run(transcriptTitle, null, null, null, session.sessionId);
         backfilled = true;
+      }
+    }
+
+    // Backfill the main agent's placeholder name/task from the first user
+    // prompt, mirroring applyFirstUserDescriptor in routes/hooks.js — dead
+    // imported sessions never receive hook events, so this re-import pass is
+    // their only path to a meaningful agent label. Idempotent: once the name
+    // is non-auto and the task is set, this never writes again.
+    if (descriptorName) {
+      const mainRow = stmts.getAgent.get(`${session.sessionId}-main`);
+      if (mainRow) {
+        const base = session.cwd ? path.basename(session.cwd) : null;
+        const storedAgent = mainRow.name || "";
+        const suffix = storedAgent.startsWith("Main Agent - ")
+          ? storedAgent.slice("Main Agent - ".length)
+          : null;
+        const suffixIsAuto =
+          suffix !== null &&
+          (!suffix.trim() ||
+            suffix === `Session ${session.sessionId.slice(0, 8)}` ||
+            (base &&
+              (suffix === base ||
+                suffix.startsWith(`${base} - `) ||
+                suffix.startsWith(`${base} (`))));
+        const agentNameIsAuto = !storedAgent.trim() || storedAgent === "Main Agent" || suffixIsAuto;
+        const desiredAgentName = `Main Agent - ${descriptorName}`;
+        const fillName = agentNameIsAuto && storedAgent !== desiredAgentName;
+        const fillTask = !mainRow.task || !String(mainRow.task).trim();
+        if (fillName || fillTask) {
+          // updateAgent writes current_tool verbatim (no COALESCE) — pass the
+          // existing value through so an in-flight tool is never wiped.
+          stmts.updateAgent.run(
+            fillName ? desiredAgentName : null,
+            null,
+            fillTask ? session.firstUserMessage : null,
+            mainRow.current_tool,
+            null,
+            null,
+            mainRow.id
+          );
+          backfilled = true;
+        }
       }
     }
     if (
@@ -1451,7 +1519,9 @@ function importSession(dbModule, session) {
     "main",
     null,
     agentStatus,
-    null,
+    // First user prompt doubles as the main agent's task so imported agent
+    // cards say what the session set out to do (issue #201).
+    session.firstUserMessage || null,
     null,
     null
   );
