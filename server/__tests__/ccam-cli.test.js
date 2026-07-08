@@ -336,6 +336,8 @@ describe("ccam CLI — help & errors", () => {
     const { code, out } = await ccam("help");
     assert.equal(code, 0);
     for (const word of [
+      "status",
+      "start",
       "health",
       "stats",
       "kanban",
@@ -377,7 +379,7 @@ describe("ccam CLI — help & errors", () => {
     assert.match(err, /Unknown command/);
   });
 
-  it("unreachable server exits 1 with a start hint", async () => {
+  it("unreachable server exits 1 with the not-running indicator + start hint", async () => {
     const r = await new Promise((resolve) => {
       const child = spawn(process.execPath, [CLI, "health"], {
         env: { ...process.env, DASHBOARD_PORT: "1" }, // nothing listens on port 1
@@ -387,7 +389,35 @@ describe("ccam CLI — help & errors", () => {
       child.on("close", (code) => resolve({ code, err }));
     });
     assert.equal(r.code, 1);
-    assert.match(r.err, /Cannot reach the dashboard/);
+    assert.match(r.err, /Dashboard server is NOT running/);
+    assert.match(r.err, /ccam start/);
     assert.match(r.err, /npm run dev/);
+  });
+
+  it("status reports running when the server is up", async () => {
+    const { code, out } = await ccam("status");
+    assert.equal(code, 0);
+    assert.match(out, /running/);
+    assert.match(out, new RegExp(String(PORT)));
+  });
+
+  it("status exits 1 with the down indicator when the server is down", async () => {
+    const r = await new Promise((resolve) => {
+      const child = spawn(process.execPath, [CLI, "status"], {
+        env: { ...process.env, DASHBOARD_PORT: "1" },
+      });
+      let out = "";
+      child.stdout.on("data", (d) => (out += d));
+      child.on("close", (code) => resolve({ code, out }));
+    });
+    assert.equal(r.code, 1);
+    assert.match(r.out, /NOT running/);
+    assert.match(r.out, /ccam start/);
+  });
+
+  it("start no-ops with a pointer when a server is already running", async () => {
+    const { code, out } = await ccam("start");
+    assert.equal(code, 0);
+    assert.match(out, /already running/);
   });
 });

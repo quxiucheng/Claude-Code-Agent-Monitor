@@ -66,9 +66,26 @@ The CLI finds your running dashboard the same way the Claude Code hook handler d
 | 2 | `~/.claude/.agent-dashboard.json` | Written by every running dashboard (`{port, pid, startedAt}` entries); stale entries are skipped via a PID liveness check |
 | 3 | `http://127.0.0.1:4820` | Default port fallback |
 
-If no server answers, every command exits `1` with `✖ Cannot reach the dashboard …` and the command to start one.
+If no server answers, every API-backed command exits `1` with the `○ Dashboard server is NOT running` indicator and the ways to start one (see [Server Lifecycle](#server-lifecycle)).
 
 ## Commands
+
+### Server Lifecycle
+
+The CLI talks to the local dashboard server — **API-backed commands require it to be running**. When it isn't, every such command prints a consistent indicator and exits `1`:
+
+```
+○ Dashboard server is NOT running (tried http://127.0.0.1:4820)
+  This command needs the server. Start it with one of:
+    ccam start        # production server in the background
+    npm run dev       # dev mode (hot reload), foreground
+    npm start         # production mode, foreground
+```
+
+| Command | Description |
+| ------- | ----------- |
+| `ccam status` | At-a-glance up/down indicator (`●` running / `○` not running); exits `1` when down |
+| `ccam start [--port N]` | Start the production server **in the background** (detached; survives closing the terminal), wait up to 30 s for `/api/health`, print the URL + PID and the `kill <pid>` stop command. Logs append to `data/ccam-server.log`. No-ops with a pointer when a server is already up. Requires a built client (`npm run build` once) |
 
 ### Monitoring
 
@@ -153,7 +170,7 @@ If no server answers, every command exits `1` with `✖ Cannot reach the dashboa
 
 | Symptom | Fix |
 | ------- | --- |
-| `✖ Cannot reach the dashboard` | Start the server (`npm run dev` or `npm start`). If it runs on a custom port, set `DASHBOARD_PORT` or rely on the discovery file |
+| `○ Dashboard server is NOT running` | Start it: `ccam start` (background), `npm run dev`, or `npm start`. If it runs on a custom port, set `DASHBOARD_PORT` or rely on the discovery file |
 | `ccam: command not found` | Run `npm link` from the repo root (setup's fail-soft link may have skipped on permissions), or use `node bin/ccam.js …` |
 | Wrong server answers (multiple dashboards) | Set `CLAUDE_DASHBOARD_PORT` explicitly — env overrides always beat discovery |
 | `tail` shows nothing | Events only flow while hooks are installed and a Claude Code session is active — check `ccam doctor` |

@@ -612,6 +612,10 @@ flowchart LR
 仪表盘的完整功能面同样可以在终端中使用——零依赖的 **`ccam`** CLI（`bin/ccam.js`），由 `npm run setup` 自动链接（失败即降级的 `npm link`）。CLI 通过 `~/.claude/.agent-dashboard.json`（与 hook 处理器相同的注册表）自动发现正在运行的服务器，可用 `CLAUDE_DASHBOARD_PORT`/`DASHBOARD_PORT` 覆盖，默认 `http://127.0.0.1:4820`。
 
 ```bash
+# 服务器
+ccam status                       # ● 运行中 / ○ 未运行 指示器
+ccam start [--port N]             # 在后台启动服务器（分离进程）
+
 # 监控
 ccam health                       # 仪表盘是否在运行？
 ccam stats                        # 总量、今日事件、状态分布
@@ -657,7 +661,7 @@ ccam clear-data --yes             # 删除全部数据（必须 --yes）
 ccam open                         # 在浏览器中打开仪表盘
 ```
 
-读取类命令始终安全；唯一的破坏性命令（`clear-data`）没有显式 `--yes` 时拒绝执行。若 `ccam` 不在 PATH 上，在仓库根目录运行一次 `npm link`。完整参考——标志、服务器发现顺序、安全模型、退出码——见 [docs/CLI.md](./docs/CLI.md)。
+基于 API 的命令需要服务器在运行——未运行时它们会打印一致的 `○ Dashboard server is NOT running` 指示并给出启动命令，`ccam start` 可在后台拉起生产服务器。读取类命令始终安全；唯一的破坏性命令（`clear-data`）没有显式 `--yes` 时拒绝执行。若 `ccam` 不在 PATH 上，在仓库根目录运行一次 `npm link`。完整参考——标志、服务器发现顺序、安全模型、退出码——见 [docs/CLI.md](./docs/CLI.md)。
 
 ## npm 脚本
 

@@ -613,6 +613,10 @@ flowchart LR
 Toàn bộ bề mặt tính năng của dashboard cũng dùng được từ terminal qua CLI **`ccam`** không phụ thuộc thư viện ngoài (`bin/ccam.js`), được liên kết tự động bởi `npm run setup` (qua `npm link` kiểu fail-soft). CLI tự tìm server đang chạy qua `~/.claude/.agent-dashboard.json` (cùng sổ đăng ký mà hook handler dùng; ghi đè bằng `CLAUDE_DASHBOARD_PORT`/`DASHBOARD_PORT`, mặc định `http://127.0.0.1:4820`).
 
 ```bash
+# Máy chủ
+ccam status                       # chỉ báo ● đang chạy / ○ chưa chạy
+ccam start [--port N]             # khởi động server chạy nền (detached)
+
 # Giám sát
 ccam health                       # dashboard có đang chạy không?
 ccam stats                        # tổng số, sự kiện hôm nay, phân bố trạng thái
@@ -658,7 +662,7 @@ ccam clear-data --yes             # xóa TOÀN BỘ dữ liệu (bắt buộc --
 ccam open                         # mở dashboard trong trình duyệt
 ```
 
-Các lệnh đọc luôn an toàn; lệnh phá hủy duy nhất (`clear-data`) từ chối chạy nếu thiếu `--yes` tường minh. Nếu `ccam` chưa có trên PATH, chạy `npm link` một lần từ thư mục gốc của repo. Tài liệu đầy đủ — cờ, thứ tự phát hiện server, mô hình an toàn, mã thoát — tại [docs/CLI.md](./docs/CLI.md).
+Các lệnh dựa trên API cần server đang chạy — khi chưa chạy, chúng in chỉ báo nhất quán `○ Dashboard server is NOT running` kèm các lệnh khởi động, và `ccam start` đưa server production lên chạy nền. Các lệnh đọc luôn an toàn; lệnh phá hủy duy nhất (`clear-data`) từ chối chạy nếu thiếu `--yes` tường minh. Nếu `ccam` chưa có trên PATH, chạy `npm link` một lần từ thư mục gốc của repo. Tài liệu đầy đủ — cờ, thứ tự phát hiện server, mô hình an toàn, mã thoát — tại [docs/CLI.md](./docs/CLI.md).
 
 ## Tập lệnh npm
 
