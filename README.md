@@ -619,6 +619,10 @@ For git clones, the server periodically `git fetch`es `origin` and compares your
 The dashboard's full feature surface is also available from any terminal via the dependency-free **`ccam`** CLI (`bin/ccam.js`). It is linked automatically by `npm run setup` (via `npm link`), after which `ccam <command>` works from any directory. It discovers the running dashboard through `~/.claude/.agent-dashboard.json` (the same live-server registry the hook handler uses), with `CLAUDE_DASHBOARD_PORT` / `DASHBOARD_PORT` env overrides, falling back to `http://127.0.0.1:4820`.
 
 ```bash
+# Server
+ccam status                       # ● running / ○ not running indicator
+ccam start [--port N]             # start the server in the background (detached)
+
 # Monitoring
 ccam health                       # is the dashboard up?
 ccam stats                        # totals, today's events, status distributions
@@ -664,7 +668,7 @@ ccam clear-data --yes             # delete ALL data (requires --yes)
 ccam open                         # open the dashboard in your browser
 ```
 
-Read commands are always safe; the one destructive command (`clear-data`) refuses to run without an explicit `--yes`. If `ccam` is not on your PATH (e.g. `npm link` needed elevated permissions), run `npm link` once from the repo root. Full reference — flags, discovery order, safety model, scripting/exit codes, troubleshooting — in [docs/CLI.md](./docs/CLI.md).
+API-backed commands need the server running — when it isn't, they print a consistent `○ Dashboard server is NOT running` indicator with the start commands, and `ccam start` brings a production server up in the background. Read commands are always safe; the one destructive command (`clear-data`) refuses to run without an explicit `--yes`. If `ccam` is not on your PATH (e.g. `npm link` needed elevated permissions), run `npm link` once from the repo root. Full reference — flags, discovery order, safety model, scripting/exit codes, troubleshooting — in [docs/CLI.md](./docs/CLI.md).
 
 ## npm Scripts
 

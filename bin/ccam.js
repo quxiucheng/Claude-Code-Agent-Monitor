@@ -100,9 +100,7 @@ async function api(method, pathname, body) {
       signal: AbortSignal.timeout(30_000),
     });
   } catch {
-    console.error(c.red(`✖ Cannot reach the dashboard at ${baseUrl()}`));
-    console.error(c.dim("  Start it with: npm run dev   (or npm start)"));
-    process.exit(1);
+    serverDownExit();
   }
   let data = null;
   try {
@@ -119,6 +117,35 @@ async function api(method, pathname, body) {
 }
 const get = (p) => api("GET", p);
 const post = (p, b) => api("POST", p, b);
+
+/**
+ * Print the standard "server is not running" indicator and exit 1. Every
+ * command that needs the API funnels through this, so the guidance is
+ * identical everywhere: the ccam CLI talks to the local dashboard server,
+ * and `ccam start` (or npm run dev / npm start) brings one up.
+ */
+function serverDownExit() {
+  console.error(`${c.red("○ Dashboard server is NOT running")} ${c.dim(`(tried ${baseUrl()})`)}`);
+  console.error(c.dim("  This command needs the server. Start it with one of:"));
+  console.error(
+    `    ${c.bold("ccam start")}        ${c.dim("# production server in the background")}`
+  );
+  console.error(
+    `    ${c.bold("npm run dev")}       ${c.dim("# dev mode (hot reload), foreground")}`
+  );
+  console.error(`    ${c.bold("npm start")}         ${c.dim("# production mode, foreground")}`);
+  process.exit(1);
+}
+
+/** True when the dashboard answers /api/health at the resolved URL. */
+async function serverIsUp() {
+  try {
+    const res = await fetch(`${baseUrl()}/api/health`, { signal: AbortSignal.timeout(2_500) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 
 /** Minimal flag parser: --key value / --key. Positionals returned in order. */
 function parseArgs(argv) {
@@ -668,6 +695,72 @@ async function cmdReinstallHooks() {
   console.log(`${c.green("✔")} Claude Code hooks reinstalled`);
 }
 
+/**
+ * Start the dashboard server in the background (production mode, serving the
+ * built client) and wait until /api/health answers. No-ops with a pointer to
+ * the live URL when a server is already up. The child is fully detached with
+ * its output appended to data/ccam-server.log, so closing this terminal does
+ * not stop the dashboard; stop it later with `kill <pid>` (the PID is
+ * printed and registered in ~/.claude/.agent-dashboard.json).
+ */
+async function cmdStart(flags) {
+  if (await serverIsUp()) {
+    console.log(`${c.green("●")} Dashboard already running at ${c.bold(baseUrl())}`);
+    return;
+  }
+  const clientDist = path.join(REPO_ROOT, "client", "dist", "index.html");
+  if (!fs.existsSync(clientDist)) {
+    console.error(c.red("✖ client/dist is missing — the production server needs a built client."));
+    console.error(c.dim("  Build it once with: npm run build   (then re-run: ccam start)"));
+    console.error(c.dim("  Or run the dev servers instead:     npm run dev"));
+    process.exit(1);
+  }
+  const logDir = path.join(REPO_ROOT, "data");
+  fs.mkdirSync(logDir, { recursive: true });
+  const logFile = path.join(logDir, "ccam-server.log");
+  const out = fs.openSync(logFile, "a");
+  const env = { ...process.env, NODE_ENV: "production" };
+  if (flags.port) env.DASHBOARD_PORT = String(flags.port);
+  const child = spawn(process.execPath, [path.join(REPO_ROOT, "server", "index.js")], {
+    detached: true,
+    stdio: ["ignore", out, out],
+    env,
+    cwd: REPO_ROOT,
+  });
+  child.unref();
+  process.stdout.write(c.dim(`Starting dashboard server (pid ${child.pid}, log ${logFile}) `));
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    if (await serverIsUp()) {
+      console.log(
+        `\n${c.green("●")} Dashboard ${c.bold("up")} at ${baseUrl()} ${c.dim(`(pid ${child.pid})`)}`
+      );
+      console.log(c.dim(`  Stop it with: kill ${child.pid}`));
+      return;
+    }
+    process.stdout.write(c.dim("."));
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  console.error(`\n${c.red("✖ Server did not become healthy within 30 s")} — check ${logFile}`);
+  process.exit(1);
+}
+
+/** Up/down indicator without exiting non-zero noise — the at-a-glance check. */
+async function cmdStatus() {
+  if (await serverIsUp()) {
+    const h = await get("/api/health");
+    console.log(
+      `${c.green("●")} Dashboard server is ${c.bold("running")} at ${baseUrl()} (${h.timestamp})`
+    );
+  } else {
+    console.log(
+      `${c.red("○")} Dashboard server is ${c.bold("NOT running")} ${c.dim(`(tried ${baseUrl()})`)}`
+    );
+    console.log(c.dim("  Start it with: ccam start   (or npm run dev / npm start)"));
+    process.exit(1);
+  }
+}
+
 function cmdOpen() {
   const url = baseUrl();
   const opener =
@@ -684,6 +777,10 @@ function cmdHelp() {
   console.log(`${c.bold("ccam")} — Claude Code Agent Monitor CLI
 
 ${c.bold("Usage:")} ccam <command> [options]
+
+${c.bold("Server")}
+  status                      Up/down indicator for the dashboard server
+  start [--port N]            Start the server in the background and wait for healthy
 
 ${c.bold("Monitoring")}
   health                      Check the dashboard is up
@@ -732,7 +829,10 @@ ${c.bold("Administration")}
 
 ${c.bold("Server discovery:")} CLAUDE_DASHBOARD_PORT / DASHBOARD_PORT env vars win,
 otherwise the live server is found via ~/.claude/.agent-dashboard.json,
-falling back to http://127.0.0.1:4820.`);
+falling back to http://127.0.0.1:4820.
+
+${c.bold("Note:")} ccam talks to the local dashboard server — API-backed commands
+require it to be running (${c.bold("ccam start")} brings one up in the background).`);
 }
 
 // ── Entry point ─────────────────────────────────────────────────────────────
@@ -743,6 +843,10 @@ async function main() {
   switch (cmd) {
     case "health":
       return cmdHealth();
+    case "status":
+      return cmdStatus();
+    case "start":
+      return cmdStart(flags);
     case "stats":
       return cmdStats();
     case "kanban":
