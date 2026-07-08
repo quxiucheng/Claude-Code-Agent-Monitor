@@ -64,6 +64,52 @@ const MAX_ARRAY_LEN = (() => {
 // Amortized O(N): each item is touched by a splice at most ~once.
 const PARSE_TRIM_WATERMARK = MAX_ARRAY_LEN * 2;
 
+// Cap on the captured first-user-message text. 500 chars matches the task
+// truncation the hook ingestor already applies to subagent prompts, so the
+// descriptor can be reused verbatim as an agent task downstream.
+const FIRST_USER_MESSAGE_MAX_LEN = 500;
+
+// Synthetic user entries whose text is CLI plumbing, not something the human
+// typed: local slash-command invocations/output and the caveat preamble
+// Claude Code writes before locally-generated messages. These must never
+// become a session descriptor.
+const SYNTHETIC_USER_TEXT_RE =
+  /^<(?:command-name|command-message|local-command-stdout|local-command-caveat)>/;
+
+/**
+ * Extract the human-typed text of a user transcript entry, or null when the
+ * entry is not a real prompt: tool-result entries, meta/caveat lines, local
+ * slash-command plumbing, compact summaries, and user-interrupt markers are
+ * all skipped. Shared with scripts/import-history.js so imported and live
+ * sessions derive the identical descriptor.
+ */
+function extractFirstUserText(entry) {
+  if (entry.isMeta || entry.isCompactSummary) return null;
+  if (entry.interruptedMessageId != null || hasInterruptText(entry.message)) return null;
+  const msg = entry.message;
+  if (!msg || typeof msg !== "object" || msg.role !== "user") return null;
+  const content = msg.content;
+  let text = null;
+  if (typeof content === "string") {
+    text = content;
+  } else if (Array.isArray(content)) {
+    // Tool-result entries are `role:"user"` too — skip any entry carrying a
+    // tool_result block rather than mining text out of a mixed payload.
+    if (content.some((b) => b && b.type === "tool_result")) return null;
+    text = content
+      .filter((b) => b && b.type === "text" && typeof b.text === "string")
+      .map((b) => b.text)
+      .join(" ");
+  }
+  if (typeof text !== "string") return null;
+  // Collapse newlines/runs of whitespace so the descriptor reads as one line.
+  text = text.replace(/\s+/g, " ").trim();
+  if (!text || SYNTHETIC_USER_TEXT_RE.test(text)) return null;
+  return text.length > FIRST_USER_MESSAGE_MAX_LEN
+    ? text.slice(0, FIRST_USER_MESSAGE_MAX_LEN)
+    : text;
+}
+
 class TranscriptCache {
   constructor(maxEntries = MAX_CACHE_ENTRIES) {
     this._cache = new Map();
@@ -125,6 +171,7 @@ class TranscriptCache {
             latestModel: merged.latestModel || null,
             customTitle: merged.customTitle || null,
             aiTitle: merged.aiTitle || null,
+            firstUserMessage: merged.firstUserMessage || null,
             lastInterruptTs: merged.lastInterruptTs || null,
             lastTurnTs: merged.lastTurnTs || null,
             pendingInterrupt: computePendingInterrupt(merged.lastInterruptTs, merged.lastTurnTs),
@@ -139,6 +186,7 @@ class TranscriptCache {
             !result.latestModel &&
             !result.customTitle &&
             !result.aiTitle &&
+            !result.firstUserMessage &&
             !result.lastInterruptTs &&
             !result.lastTurnTs
           ) {
@@ -327,6 +375,12 @@ class TranscriptCache {
       // time — custom titles take precedence over ai titles.
       customTitle: null,
       aiTitle: null,
+      // First real user prompt of the session (tool-result / meta / command
+      // entries skipped), whitespace-collapsed and length-capped. Used
+      // downstream as a fallback descriptor for placeholder-named sessions
+      // and their main agent — first value wins (it describes what the
+      // session set out to do), unlike the last-wins titles above.
+      firstUserMessage: null,
       // Timestamps (ISO 8601, all from Claude Code's clock) used to recover a
       // turn cancelled with no hook. `lastInterruptTs` is the most recent
       // user-interrupt (Esc) entry; `lastTurnTs` is the most recent real turn
@@ -382,6 +436,14 @@ class TranscriptCache {
     if ((entry.type === "assistant" || entry.type === "user") && entry.timestamp) {
       if (!state.lastTurnTs || entry.timestamp > state.lastTurnTs)
         state.lastTurnTs = entry.timestamp;
+    }
+
+    // First real user prompt — captured once (first wins; the file is parsed
+    // in order). extractFirstUserText filters out tool-result, meta, and
+    // slash-command plumbing entries so only human-typed text qualifies.
+    if (state.firstUserMessage === null && entry.type === "user") {
+      const firstText = extractFirstUserText(entry);
+      if (firstText) state.firstUserMessage = firstText;
     }
 
     if (entry.isCompactSummary) {
@@ -482,6 +544,7 @@ class TranscriptCache {
       !state.latestModel &&
       !state.customTitle &&
       !state.aiTitle &&
+      !state.firstUserMessage &&
       !state.lastInterruptTs &&
       !state.lastTurnTs
     ) {
@@ -512,6 +575,7 @@ class TranscriptCache {
       latestModel: state.latestModel,
       customTitle: state.customTitle,
       aiTitle: state.aiTitle,
+      firstUserMessage: state.firstUserMessage,
       lastInterruptTs: state.lastInterruptTs,
       lastTurnTs: state.lastTurnTs,
       pendingInterrupt: computePendingInterrupt(state.lastInterruptTs, state.lastTurnTs),
@@ -619,6 +683,12 @@ class TranscriptCache {
       (incremental && incremental.customTitle) || cached.result?.customTitle || null;
     const aiTitle = (incremental && incremental.aiTitle) || cached.result?.aiTitle || null;
 
+    // First user message is first-wins (the opposite of the titles): the
+    // cached value was parsed from earlier in the file, so it stays; the
+    // incremental chunk only fills it when nothing was captured before.
+    const firstUserMessage =
+      cached.result?.firstUserMessage || (incremental && incremental.firstUserMessage) || null;
+
     // Append-only: a newer interrupt / turn-activity timestamp in the
     // incremental chunk supersedes the cached one, otherwise keep what was
     // already known. pendingInterrupt is derived from the two by the caller.
@@ -636,6 +706,7 @@ class TranscriptCache {
       latestModel,
       customTitle,
       aiTitle,
+      firstUserMessage,
       lastInterruptTs,
       lastTurnTs,
     };
@@ -719,3 +790,4 @@ class TranscriptCache {
 }
 
 module.exports = TranscriptCache;
+module.exports.extractFirstUserText = extractFirstUserText;

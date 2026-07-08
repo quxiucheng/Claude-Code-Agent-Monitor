@@ -923,8 +923,9 @@
                     <code>name</code>, and <code>cwd</code> runs server-side with a 300 ms
                     debounce; the status filter composes with search for precise narrowing.
                     Each row shows the session's real name (synced live from the transcript — a
-                    <code>/rename</code> or <code>claude -n</code> title, else the auto title, with
-                    a short-ID fallback), status badge, agent count, duration, model, and estimated
+                    <code>/rename</code> or <code>claude -n</code> title, else the auto title,
+                    else the first user prompt, with a short-ID fallback), status badge, agent
+                    count, duration, model, and estimated
                     cost. Click any row to drill into the full session detail view with conversation
                     transcript and agent hierarchy.
                   </p>
@@ -1076,7 +1077,8 @@
                     already-parsed content; cache hits short-circuit disk I/O so even sessions
                     with tens of thousands of turns stay fast. It also extracts the live session
                     title (<code>custom-title</code> / <code>ai-title</code>) so renames surface in
-                    real time.
+                    real time, plus the first user prompt as a fallback descriptor for
+                    placeholder-named sessions and agents.
                   </p>
                 </div>
                 <div class="feature-card">
@@ -6073,7 +6075,7 @@ npm run install-hooks</code></pre>
     <!-- Body-content translations (zh/vi) — must load before script.js so the
          i18n engine sees window.__WIKI_CONTENT_I18N. Both are deferred, so they
          run in document order. -->
-    <script src="i18n-content.js?v=18" defer></script>
+    <script src="i18n-content.js?v=19" defer></script>
     <script src="script.js?v=30" defer></script>
     <script>
       (function () {
