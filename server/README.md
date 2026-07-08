@@ -1063,9 +1063,11 @@ Fail-safe guards, in order:
 
 - The probe must be **trustworthy**: it reports "no answer" (and the reap changes nothing) on Windows, inside containers (host processes are invisible), when `ps`/`lsof` fail, or when explicitly disabled via `DASHBOARD_LIVENESS_PROBE=0` — the escape hatch for setups where hooks arrive from another machine, where local processes prove nothing.
 - The session must have a `cwd` to match on.
-- **Both** the session's last hook write (`updated_at`) and its transcript mtime must be older than `DASHBOARD_LIVENESS_IDLE_SECONDS` (default `60`), so mid-turn, just-imported, or just-resumed sessions never flicker out on a transient probe miss (e.g. `claude --resume` run from a different directory than the recorded session cwd).
+- The session's **transcript mtime** must be older than `DASHBOARD_LIVENESS_IDLE_SECONDS` (default `60`) — the transcript is the ground-truth activity clock (Claude Code appends to it every turn and it stops moving the instant the process dies); `updated_at` is only the fallback for sessions with no transcript on disk. Keying on `updated_at` would leave a freshly imported dead session in Waiting for a full extra gate period after every boot, since import/backfill passes bump it at startup. A mid-turn session with a mismatched cwd (e.g. `claude --resume` run from a different directory) keeps its transcript mtime fresh and is spared.
 - A false completion self-heals: the next hook event reactivates the session via the existing reactivation path.
 - Only `status = 'active'` rows are considered; `error` sessions keep their existing recovery paths.
+
+Cadence: every 15 s watchdog tick, plus a **one-shot early pass ~5 s after startup** (`startBackgroundServices`) so sessions that died while the dashboard was down clear before the user's first look at the UI.
 
 ### API Error → Error State Flow
 

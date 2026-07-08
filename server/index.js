@@ -273,6 +273,23 @@ function startBackgroundServices() {
   // One-time legacy-session backfill (a no-op once its marker file exists).
   autoImportLegacySessions();
 
+  // One-shot early liveness reap ~5 s after boot. The startup session sync
+  // imports recently-active transcripts as active/waiting; when the user quit
+  // Claude Code while the dashboard was DOWN, the SessionEnd hook was lost and
+  // only the process probe can tell the session is dead. The 15 s watchdog
+  // catches these on its first tick anyway — this early pass just clears dead
+  // rows before the user's first look at the UI. Fail-safe and unref'd.
+  {
+    const t = setTimeout(() => {
+      try {
+        require("./routes/hooks").livenessReap();
+      } catch (err) {
+        console.warn("boot liveness reap failed:", err?.message || err);
+      }
+    }, 5_000);
+    if (t.unref) t.unref();
+  }
+
   // Backfill per-agent token metadata onto subagent rows that predate per-agent
   // cost tracking, so their cards show their own cost instead of nothing. Runs
   // deferred and non-blocking; self-limiting (rows with a tokens key are
