@@ -1406,13 +1406,13 @@ document.querySelectorAll(".diagram-toggle").forEach((toggle) => {
   // source for each element is cached in a Map so re-applying a language always
   // translates from English (idempotent). Data ships in i18n-content.js.
   const CONTENT = (typeof window !== "undefined" && window.__WIKI_CONTENT_I18N) || {};
-  const H = { zh: CONTENT.zh || {}, vi: CONTENT.vi || {} };
+  const H = { zh: CONTENT.zh || {}, vi: CONTENT.vi || {}, ko: CONTENT.ko || {} };
   const trH = (lang, en) => (lang === "en" ? en : (H[lang] && H[lang][norm(en)]) || en);
   // Heading / section-label translations from the content bundle fill any gaps
   // in T. Existing T entries always win, so this never regresses the scannable
   // layer — it only adds headings T didn't already cover.
   if (CONTENT.plain) {
-    ["zh", "vi"].forEach((lng) => {
+    ["zh", "vi", "ko"].forEach((lng) => {
       const src = CONTENT.plain[lng] || {};
       for (const k in src) if (!(k in T[lng])) T[lng][k] = src[k];
     });
@@ -1455,7 +1455,8 @@ document.querySelectorAll(".diagram-toggle").forEach((toggle) => {
     });
     const search = document.getElementById("sidebar-search");
     if (search) search.placeholder = tr(lang, "Search docs...");
-    document.documentElement.lang = lang === "zh" ? "zh-CN" : lang === "vi" ? "vi" : "en";
+    document.documentElement.lang =
+      lang === "zh" ? "zh-CN" : lang === "vi" ? "vi" : lang === "ko" ? "ko" : "en";
     document
       .querySelectorAll(".lang-btn")
       .forEach((b) => b.classList.toggle("active", b.dataset.lang === lang));
