@@ -2261,7 +2261,7 @@ npm run mcp:start:repl         # interactive CLI with tab completion</code></pre
                 working --> working: PostToolUse (tool completed)
                 working --> waiting: Stop (non-error)
                 working --> waiting: Notification (input prompt)
-                working --> waiting: Esc cancel (watchdog: marker or idle timeout)
+                working --> waiting: Esc cancel (watchdog marker or idle timeout)
                 waiting --> error: Stop with error
                 working --> error: Stop with error
                 waiting --> error: API error (watchdog)
@@ -2289,7 +2289,7 @@ npm run mcp:start:repl         # interactive CLI with tab completion</code></pre
                 waiting --> active: UserPromptSubmit / PreToolUse / PostToolUse
                 active --> waiting: Stop (non-error, flag re-stamped)
                 active --> waiting: Permission Notification (agent → waiting)
-                active --> waiting: Esc cancel (watchdog: marker or idle timeout)
+                active --> waiting: Esc cancel (watchdog marker or idle timeout)
                 active --> error: Stop (stop_reason=error)
                 active --> error: API error (watchdog)
                 waiting --> error: API error (watchdog)

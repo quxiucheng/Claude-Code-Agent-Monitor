@@ -528,7 +528,7 @@ stateDiagram-v2
     working --> working: PostToolUse (tool hoàn tất)
     working --> waiting: Stop, không lỗi
     working --> waiting: Notification (yêu cầu input)
-    working --> waiting: Esc cancel (watchdog: marker hoặc idle timeout)
+    working --> waiting: Esc cancel (watchdog marker hoặc idle timeout)
     waiting --> error: Stop có lỗi
     working --> error: Stop có lỗi
     waiting --> error: Phát hiện lỗi API (watchdog)
@@ -555,7 +555,7 @@ stateDiagram-v2
     waiting --> active: UserPromptSubmit / PreToolUse / PostToolUse
     active --> waiting: Stop, không lỗi (cờ được đóng dấu lại)
     active --> waiting: Notification xin quyền (agent → waiting)
-    active --> waiting: Esc cancel (watchdog: marker hoặc idle timeout)
+    active --> waiting: Esc cancel (watchdog marker hoặc idle timeout)
     active --> error: Stop, stop_reason=error
     active --> error: Phát hiện lỗi API (watchdog)
     waiting --> error: Phát hiện lỗi API (watchdog)
