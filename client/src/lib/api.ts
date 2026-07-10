@@ -37,11 +37,35 @@ const BASE = "/api";
  * operator binds the server to a LAN and sets DASHBOARD_TOKEN; for the default
  * loopback bind there is no token and this returns null (zero-config). Read from
  * an injected global first, then localStorage so a LAN user can set it once.
+ *
+ * A token may also be passed via the `?token=` query string - convenient for a
+ * LAN/reverse-proxy deployment where the operator shares a `?token=…` link. On
+ * first hit the URL token is persisted to localStorage (overwriting any prior
+ * value, so tokens can be rotated by visiting a fresh `?token=` link) and then
+ * stripped from the address bar so it does not linger in history/referrer/logs.
  */
 export function dashboardToken(): string | null {
   try {
     const injected = (globalThis as { __DASHBOARD_TOKEN__?: unknown }).__DASHBOARD_TOKEN__;
     if (typeof injected === "string" && injected) return injected;
+
+    // ?token= on the URL takes precedence over a stale stored value so rotation
+    // works; persist it and scrub it from the address bar.
+    if (typeof window !== "undefined" && window.location?.search) {
+      const urlToken = new URLSearchParams(window.location.search).get("token");
+      if (urlToken && urlToken.length > 0) {
+        localStorage.setItem("dashboard_token", urlToken);
+        try {
+          const clean = new URL(window.location.href);
+          clean.searchParams.delete("token");
+          window.history.replaceState(null, "", clean.toString());
+        } catch {
+          /* non-critical: leave the URL as-is if it isn't parseable */
+        }
+        return urlToken;
+      }
+    }
+
     const stored = localStorage.getItem("dashboard_token");
     return stored && stored.length > 0 ? stored : null;
   } catch {
